@@ -20,6 +20,23 @@ Team B - Radiation Test Solutions
         arm05006@byui.edu
 """
 
+"""
+GitHub tips -------------------------------------------------------------
+To upload changes
+    git add .   (stage changes - LOCAL)
+    git commit  (save staged changes - LOCAL)
+    git push    (upload saved changes to remote repo - LOCAL-->REMOTE)
+    
+To receive Changes
+    git pull    (download remote changes - REMOTE-->LOCAL)
+    
+To change branches
+    git checkout branchName
+
+To check status/verify branch
+    git status
+"""
+
 # Setup visuals --------------------------------------------------------------
 # Import Tkinter
 import tkinter as tk
