@@ -18,6 +18,18 @@ Team B - Radiation Test Solutions
     Joshua Armstrong
         208-406-8689
         arm05006@byui.edu
+
+Steps to upload changes
+    1. git add .
+    2. git commit
+    3. git push
+    
+TO receive Changes
+    git pull
+    
+To change branches
+    git checkout branchName
+    
 """
 
 # Setup visuals --------------------------------------------------------------
