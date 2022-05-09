@@ -18,18 +18,23 @@ Team B - Radiation Test Solutions
     Joshua Armstrong
         208-406-8689
         arm05006@byui.edu
+"""
 
-Steps to upload changes
-    1. git add .
-    2. git commit
-    3. git push
+"""
+GitHub tips -------------------------------------------------------------
+To upload changes
+    git add .   (stage changes - LOCAL)
+    git commit  (save staged changes - LOCAL)
+    git push    (upload saved changes to remote repo - LOCAL-->REMOTE)
     
-TO receive Changes
-    git pull
+To receive Changes
+    git pull    (download remote changes - REMOTE-->LOCAL)
     
 To change branches
     git checkout branchName
-    
+
+To check status/verify branch
+    git status
 """
 
 # Setup visuals --------------------------------------------------------------
