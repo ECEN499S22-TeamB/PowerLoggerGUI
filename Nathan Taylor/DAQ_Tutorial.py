@@ -82,10 +82,15 @@ def discovery():
         if ("VID:PID=0683" in p.hwid):
             # Yes!  Dectect and assign the hooked com port
             DAQs.append(p)
-            for d in DAQs:
-                print(d)
-            hooked_port = p.device
-            #break
+    a = 0
+    for d in DAQs:
+        a += 1        
+        print("{}. {}".format(a,d))
+        
+    b = int(input("Select Device: "))
+    hooked_port = d[b-1]
+    #hooked_port = p.device
+    #break
 
     if hooked_port:
         print("Found a DATAQ Instruments device on",hooked_port)
@@ -142,7 +147,10 @@ send_cmd("ps 0")
 # Configure the instrument's scan list
 config_scn_lst()
 
-# Define sample rate = 1 Hz, where decimation_factor = 1000:
+"""
+Defines Sample rate
+"""
+# Define sample rate = 1 Hz, where decimation_factor = 1000:  
 # 60,000,000/(srate) = 60,000,000 / 60000 / decimation_factor = 1 Hz
 send_cmd("srate 60000")
 print("")
