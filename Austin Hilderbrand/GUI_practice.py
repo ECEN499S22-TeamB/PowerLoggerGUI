@@ -381,3 +381,122 @@ Austin Hilderbrand
 # ---------------------------------------------------------------------------
 # ----------------- Making Your Applications Interactive --------------------
 # ---------------------------------------------------------------------------
+# =========== Using Events and Event Handlers
+# # Assume that this list gets updated automatically
+# events = []
+
+# # Create an event handler
+# def handle_keypress(event):
+#     """Print the character associated to the key pressed"""
+#     print(event.char)
+
+# # Run the event loop
+# while True:
+#     # If the event list is empty, then no events have occurred
+#     # and you can skip to the next iteration of the loop
+#     if events == []:
+#         continue
+
+#     # If execution reaches this point, then there is at least one
+#     # event object in the event list
+#     event = events[0]
+
+#     # If event is a keypress event object
+#     if event.type == "keypress":
+#         # Call the keypress event handler
+#         handle_keypress(event)
+
+# ============ Using .bind()
+# import tkinter as tk
+
+# Create a new window object
+# window = tk.Tk()
+
+# # Keystroke event handler
+# # Create an event handler
+# def handle_keypress(event):
+#     """Print the character associated to the key pressed"""
+#     print(event.char)
+
+# # Bind keypress event to handle_keypress()
+# window.bind("<Key>", handle_keypress)
+
+# # Button event handler
+# def handle_click(event):
+#     print ("The button was clicked!")
+
+# button = tk.Button(text="Click me!")
+# button.pack()
+# button.bind("<Button-3>", handle_click) # Respond to right click
+
+# # ============= Using Command
+# # Imports
+# import tkinter as tk
+
+# # Event handlers
+# def increase():
+#     value = int(lbl_value["text"])
+#     lbl_value["text"] = f"{value + 1}"
+
+# def decrease():
+#     value = int(lbl_value["text"])
+#     lbl_value["text"] = f"{value - 1}"
+
+# # Create a new window
+# window = tk.Tk()
+
+# # Setup visuals
+# window.rowconfigure(0, minsize=50, weight=1)
+# window.columnconfigure([0, 1, 2], minsize=50, weight=1)
+
+# btn_decrease = tk.Button(master=window, text="-", command=decrease)
+# btn_decrease.grid(row=0, column=0, sticky="nsew")
+
+# lbl_value = tk.Label(master=window, text="0")
+# lbl_value.grid(row=0, column = 1)
+
+# btn_increase = tk.Button(master=window, text="+", command=increase)
+# btn_increase.grid(row=0, column=2, sticky="nsew")
+
+# # Run the event loop
+# window.mainloop()
+
+# # ============ Check your understanding 
+# # Imports
+# import tkinter as tk
+# from random import randint
+
+# # Event handlers
+# def roll():
+#     lbl_side["text"] = randint(1, 6) # Assign random value between 1 and 6
+
+# # create a new window
+# window = tk.Tk()
+
+# # Setup visuals
+# window.rowconfigure([0, 1], minsize=50, weight=1)
+# window.columnconfigure(0, minsize=50, weight=1)
+
+# btn_roll = tk.Button(master=window, text="Roll", command=roll)
+# btn_roll.grid(row=0, column=0, sticky="nsew")
+
+# lbl_side = tk.Label(master=window, text="6")
+# lbl_side.grid(row=1, column=0)
+
+# # Run the event loop
+# window.mainloop()
+
+# ---------------------------------------------------------------------------
+# ----------------- Building a Temperature Converter ------------------------
+# ---------------------------------------------------------------------------
+# Imports
+import tkinter as tk
+
+# Event handlers
+# TODO: add functons
+
+# Setup visuals
+window = tk.Tk()
+window.title("Temperature Converter")
+window.resizable(width=False, height=False)
+
