@@ -28,13 +28,12 @@ product page:
 https://www.dataq.com/resources/pdfs/misc/di-1100-protocol.pdf
 """
 
-
 import serial
 import serial.tools.list_ports
 import keyboard
 import time
 
-
+1
 """ 
 Example slist for model DI-1100
 0x0000 = Analog channel 0, ±10 V range
