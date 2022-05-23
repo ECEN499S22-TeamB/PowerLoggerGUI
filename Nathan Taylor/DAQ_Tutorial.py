@@ -87,12 +87,14 @@ def discovery():
         print("{}. {}".format(a,d))
         
     b = int(input("Select Device: "))
-    hooked_port = d[b-1]
+    hooked_port = p[b-1]
+
     #hooked_port = p.device
     #break
 
     if hooked_port:
-        print("Found a DATAQ Instruments device on",hooked_port)
+        #print("Found a DATAQ Instruments device on",hooked_port)
+        print("Connected to a DATAQ Instruments device on",hooked_port)
         ser.timeout = 0
         ser.port = hooked_port
         ser.baudrate = '115200'
