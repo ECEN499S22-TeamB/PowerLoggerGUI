@@ -10,6 +10,8 @@ import serial.tools.list_ports
 import keyboard
 import time
 
+ser = serial.Serial()
+
 """ Discover DATAQ Instruments devices and models.  Note that if multiple devices are connected, only the 
 device discovered first is used. We leave it to you to ensure that it's a DI-1100."""
 def discovery():
