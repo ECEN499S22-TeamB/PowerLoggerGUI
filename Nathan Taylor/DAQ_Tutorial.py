@@ -28,12 +28,16 @@ product page:
 https://www.dataq.com/resources/pdfs/misc/di-1100-protocol.pdf
 """
 
+
 import serial
 import serial.tools.list_ports
 import keyboard
 import time
+import calendar
+from datetime import datetime
 
-1
+
+
 """ 
 Example slist for model DI-1100
 0x0000 = Analog channel 0, ±10 V range
@@ -75,22 +79,24 @@ def discovery():
     available_ports = list(serial.tools.list_ports.comports())
     # Will eventually hold the com port of the detected device, if any
     hooked_port = "" 
-    DAQs = []
+    #DAQs = []
     for p in available_ports:
         # Do we have a DATAQ Instruments device?
         if ("VID:PID=0683" in p.hwid):
             # Yes!  Dectect and assign the hooked com port
-            DAQs.append(p)
-    a = 0
-    for d in DAQs:
-        a += 1        
-        print("{}. {}".format(a,d))
+           # DAQs.append(p)
+    # a = 0
+    # for d in DAQs:
+    #     a += 1        
+    #     print("{}. {}".format(a,d))
         
-    b = int(input("Select Device: "))
-    hooked_port = p[b-1]
+    # b = int(input("Select Device: "))
+    # #2
+    # hook = p[b-1]
 
-    #hooked_port = p.device
-    #break
+    # hooked_port = hook.device
+            hooked_port = p.device
+            break
 
     if hooked_port:
         #print("Found a DATAQ Instruments device on",hooked_port)
@@ -136,7 +142,7 @@ def config_scn_lst():
         # Add the channel to the logical list.
         achan_accumulation_table.append(0)
         position += 1
-
+    
 while discovery() == False:
     discovery()
 # Stop in case DI-1100 is already scanning
@@ -149,7 +155,7 @@ send_cmd("ps 0")
 config_scn_lst()
 
 """
-Defines Sample rate
+Defines Sample rate to take a sample every 15 seconds
 """
 # Define sample rate = 1 Hz, where decimation_factor = 1000:  
 # 60,000,000/(srate) = 60,000,000 / 60000 / decimation_factor = 1 Hz
@@ -169,7 +175,7 @@ dec_count = decimation_factor
 # Init the logical channel number for enabled analog channels
 achan_number = 0
 
-# This is the constructed output stringqq
+# This is the constructed output string
 output_string = ""
 
 # This is the main program loop, broken only by typing a command key as defined
@@ -245,6 +251,7 @@ while True:
 
             if (slist_pointer + 1) > (len(slist)):
                 # End of a pass through slist items
+                print(dec_count)
                 if dec_count == 1:
                     # Get here if decimation loop has finished
                     dec_count = decimation_factor
@@ -252,7 +259,15 @@ while True:
                     achan_accumulation_table = [0] * len(achan_accumulation_table)
                     # Append digital inputs to output string
                     output_string = output_string + "{: 3d}, ".format(dig_in)
-                    print(output_string.rstrip(", ") + "           ", end="\r") 
+
+                    # Time Stamp
+                    current_GMT = time.gmtime()
+                    ts = calendar.timegm(current_GMT)
+                    dt = datetime.fromtimestamp(ts)
+                    # Prints output string to serial terminal
+                    print(output_string.rstrip(", ") + "           ", end="\r\n") 
+                    print("{}\n".format(dt))
+                    # Clears the output string"
                     output_string = ""
                 else:
                     dec_count -= 1             
