@@ -107,7 +107,8 @@ def discovery():
         hooked_ports.append(found_DAQs[dev].device)
         ser_ports.append(serial.Serial()) # New ser obj for this hooked_port
         achan_accumulation_tables.append(list(())) # New achan accum. table
-        done = 'n' in input("Read from another device (y/n)? ")
+        done = len(hooked_ports) == len(found_DAQs)
+        if not done: done = 'n' in input("Read from another device (y/n)? ")
 
     # Setup serial port connections
     if len(hooked_ports) > 0:
@@ -202,7 +203,8 @@ for ser_port in range(len(ser_ports)):
     achan_number = 0
 
     # This is the constructed output string
-    output_string = ""
+    # output_string = ""
+    output_strings = [""] * len(ser_ports)
 
 print("Press <g> to go, <s> to stop, and <q> to quit:")
 
@@ -225,7 +227,6 @@ while True:
             send_cmd("stop", ser_port)
             time.sleep(1)
             ser_ports[ser_port].flushInput()
-            print ("")
             print (f"{ser_ports[ser_port].port} stopped")
         acquiring = False
     # If key 'Q' exit 
@@ -235,7 +236,7 @@ while True:
             send_cmd("stop", ser_port)
             ser_ports[ser_port].flushInput()
             ser_ports[ser_port].close()
-            break
+        break
     for ser_port in range(len(ser_ports)):
         while (ser_ports[ser_port].inWaiting() > (2 * len(slist))):
             for i in range(len(slist)):
@@ -257,7 +258,7 @@ while True:
                     achan_accumulation_tables[ser_port][achan_number] = result + achan_accumulation_tables[ser_port][achan_number]
                     achan_number += 1
                     # End of a decimation loop. So, append accumulator value / decimation_factor  to the output string
-                    output_string = output_string + "{: 3.3f}, ".format(achan_accumulation_tables[ser_port][achan_number-1] * 10 / 32768 / decimation_factor)
+                    output_strings[ser_port] = output_strings[ser_port] + "{: 3.3f}, ".format(achan_accumulation_tables[ser_port][achan_number-1] * 10 / 32768 / decimation_factor)
 
                 elif (dec_count == 1) and (slist_pointer != 0):
                     # Decimation loop finished and NOT the first slist position
@@ -266,7 +267,7 @@ while True:
                     achan_accumulation_tables[ser_port][achan_number] = result + achan_accumulation_tables[ser_port][achan_number]
                     achan_number += 1
                     # End of a decimation loop. So, append accumulator value / decimation_factor  to the output string
-                    output_string = output_string + "{: 3.3f}, ".format(achan_accumulation_tables[ser_port][achan_number-1] * 10 / 32768 / decimation_factor)
+                    output_strings[ser_port] = output_strings[ser_port] + "{: 3.3f}, ".format(achan_accumulation_tables[ser_port][achan_number-1] * 10 / 32768 / decimation_factor)
 
                 elif (dec_count != 1) and (slist_pointer == 0):
                     # Decimation loop NOT finished and first slist position
@@ -294,12 +295,16 @@ while True:
                         # Reset analog channel accumulators to zero
                         achan_accumulation_tables[ser_port] = [0] * len(achan_accumulation_tables[ser_port])
                         # Append digital inputs to output string
-                        output_string = output_string + "{: 3d}, ".format(dig_in)
-                        print(output_string.rstrip(", ") + "           ", end="\r") 
-                        output_string = ""
+                        output_strings[ser_port] = output_strings[ser_port] + "{: 3d}, ".format(dig_in)
+                        print(output_strings) # DEBUG
+                        print("Device: {}   -   ".format(ser_ports[ser_port].port), end='')
+                        # print(output_strings[ser_port].rstrip(", ") + "           ", end="\r")
+                        print(output_strings[ser_port].rstrip(", ") + "           ")
+                        output_strings[ser_port] = ""
                     else:
                         dec_count -= 1             
                     slist_pointer = 0
                     achan_number = 0
+
 # ser_ports[ser_port].close()
 SystemExit
