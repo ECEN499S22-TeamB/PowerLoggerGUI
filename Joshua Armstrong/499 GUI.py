@@ -1,13 +1,15 @@
+# Imports
 import tkinter as tk
 from random import randint
 from tkinter import messagebox
 
-#get the System time
+# Get the System time
 from time import strftime
 
 #RTSxx(year)-Jxxxx(job number)
 #Example: RTS21-J0123
 #Year 2021, Job 123
+
 
 # ============= Top level setup
 window = tk.Tk()
@@ -36,7 +38,11 @@ Current.set(f"Current = 5 A\n \n dC/dt = {Currentnum} A")
 
 
 # ============= Event handlers
+#
+# core
+#
 def core():
+    """Creates the contents of the main menu window."""
     Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=Data)
     loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=Data)
     Settingbutton = tk.Button(text= "System Setting", width=11, height=3 , command=Data)
@@ -46,7 +52,11 @@ def core():
     Settingbutton.grid(row=1, column=0, padx=50, pady=30,)
     Quitbutton.grid(row=1, column=1, padx=50, pady=30,)
 
+#
+# Data
+#
 def Data():
+    """Creates the contents of the data window (project window)."""
     Data = tk.Toplevel(window)
     Data.title("Data window")
 
@@ -92,26 +102,38 @@ def Data():
 
     Data.config(menu=menubar)
 
-#update the data or Voltage and current
+#
+# update
+#
 def update():
+    """Update the data or Voltage and current"""
     Voltnum = randint(0,5)
     Currentnum = randint(0,5)
     Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
     Current.set(f"Current = 5 A\n \n dC/dt = {Currentnum} A")
     window.after(1000, update)
 
-#test function
+#
+# donothing
+#
 def donothing():
+    """Test function."""
     messagebox.showinfo('Error', 'No function.')
 
-#setting for flag window
+#
+# flag_window
+#
 def flag_Window():
+    """Setting for flag window"""
     Flags = tk.Toplevel(window)
     Flags.geometry("250x250")
     Flags.title("Flag Setting")
 
-#setting for Sampling Window
+#
+# Sampling_Window
+#
 def Sampling_Window():
+    """Setting for Sampling Window"""
     Sampling = tk.Toplevel(window)
     Sampling.geometry("250x250")
     Sampling.title("Sapling Setting")
@@ -121,8 +143,11 @@ def Sampling_Window():
     entry = tk.Entry(Sampling, bd = 5)
     entry.grid(row = 0, column = 1)
 
+#
+# menu
+#
 def menu():
-    #setting for File menu
+    """Setting for File menu"""
     menubar = tk.Menu(window)
     filemenu = tk.Menu(menubar, tearoff=0)
     filemenu.add_command(label="New", command=donothing)
@@ -137,7 +162,6 @@ def menu():
     #samplingmenu.add_command(label="Sampling Rates", command=Sampling_Window)
     #menubar.add_cascade(label="Sampling", menu=samplingmenu)
 
-
     #setting for flag menu
     #flagmenu = tk.Menu(menubar, tearoff=0)
     #flagmenu.add_command(label="Flags Settings", command=flag_Window)
@@ -151,7 +175,8 @@ def menu():
     #Pack the menu
     window.config(menu=menubar)
 
-#runs the update
+
+# ========= Perform setup, then enter the main program loop
 menu()
 update()
 core()
