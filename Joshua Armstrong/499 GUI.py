@@ -1,6 +1,8 @@
 import tkinter as tk
-from random import randint
+from tkinter import filedialog as fd
+from tkinter import HORIZONTAL, ttk
 from tkinter import messagebox
+from random import randint
 
 #get the System time
 from time import strftime
@@ -20,8 +22,8 @@ window.columnconfigure(1, weight= 1, minsize=75)
 window.rowconfigure(4, weight= 1, minsize=50)
 
 def core():
-    Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=Data)
-    loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=Data)
+    Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=new_project)
+    loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=load_project)
     Settingbutton = tk.Button(text= "System Setting", width=11, height=3 , command=Data)
     Quitbutton = tk.Button(text= "Quit", width=10, height=3 , command=window.quit)
     Newbutton.grid(row=0, column=0, padx=50, pady=30,)
@@ -33,34 +35,71 @@ def core():
 Voltnum = randint(0,5)
 Currentnum = randint(0,5)
 
-Voltage = tk.StringVar()
+#DAQVoltage = ----
+
+Voltage = tk.IntVar()
 Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
 
-Current = tk.StringVar()
-Current.set(f"Current = 5 A\n \n dC/dt = {Currentnum} A")
-
-#side = tk.LEFT
+Current = tk.IntVar()
+Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
 
 def Data():
     Data = tk.Toplevel(window)
+    Data.columnconfigure(2, weight= 1, minsize=75)
+    Data.rowconfigure(5, weight= 1, minsize=50)
+
     Data.title("Data window")
 
     time = strftime('%H:%M:%S %p')
 
-    Voltage_label = tk.Label(Data, textvariable=Voltage)
+    Project_name = tk.Label(Data, text= "Project Name")
+    Project_name.grid(row=0, column=0, columnspan=3, sticky='n')
+
+    Vframe =tk.Frame(Data,)
+    Vframe.columnconfigure(0, weight=1)
+    Vframe.grid(row=0, column=0, padx=20, pady=20)
+
+    Voltage_label = tk.Label(Vframe, textvariable=Voltage)
     Voltage_label.grid(row=0, column=0, padx=20, pady=20)
 
-    Current_label = tk.Label(Data, textvariable=Current)
-    Current_label.config(text=Current.get())
-    Current_label.grid(row=0, column=1, padx=20, pady=20,)
+    #relief=tk.SUNKEN, borderwidth= 2, height= 15, width=30,
 
-    Flag_label = tk.Label(Data, text="Flags")
+    Cframe =tk.Frame(Data)
+    Cframe.columnconfigure(0, weight=1)
+    Cframe.grid(row=0, column=1, padx=20, pady=20)
+
+    Current_label = tk.Label(Cframe, textvariable=Current)
+    Current_label.grid(row=0, column=1, columnspan=2, padx=20, pady=20,)
+    
+    Fframe =tk.Frame(Data)
+    Fframe.grid(row=1, rowspan=3, column=0, padx=20, pady=20)
+
+    Flag_label = tk.Label(Fframe, text="Flags")
     Flag_label.grid(row=1, column=0, padx=20, pady=5,)
-    Flagbox = tk.Listbox(Data, relief=tk.SUNKEN, width=33, height=3)
-    Flagbox.grid(row=2, column=0, sticky='n')
+    Flagbox = tk.Listbox(Fframe, relief=tk.SUNKEN, width=35, height=3)
+    Flagbox.grid(row=2, column=0,  sticky='n')
+
+    def change_color():
+        current_color = Flagbox_light.cget("background")
+        if current_color == "red":
+            next_color = "white"  
+        else:
+            next_color = "red"
+        Flagbox_light.config(background=next_color)
+        window.after(200, change_color)
+
+    Flagbox_light = tk.Label(Fframe, background="red", width=4, relief=tk.SUNKEN)
+    Flagbox_light.grid(row=1, column=0, sticky='e', padx=0, pady=0)
+
+    change_color()
+
+    Log_button = tk.Button(Fframe, text="Log", command=donothing, width=4,)
+    Log_button.grid(row=3, column=0, sticky='w')
+
+    clear_error = tk.Button(Fframe, text="Clear Error", command=donothing,)
+    clear_error.grid(row=3, column=0, sticky='e')
 
     Flagbox.insert(1, f"An error has occurred at {time}")
-
     
     if Currentnum == 3:
         #change this back to 0 after Testing
@@ -71,30 +110,110 @@ def Data():
 
     Flagbox.update()
 
+    RSframe =tk.Frame(Data)
+    RSframe.grid(row=1, rowspan=4, column=1, columnspan=2, padx=20, pady=20)
 
-    Resister_label = tk.Label(Data, text="Resister")
-    Resister_label.grid(row=1, column=1, padx=20, pady=10, sticky='n')
-    Resister_entry = tk.Entry(Data, bd=5)
-    Resister_entry.grid(row=2, column=1, sticky='n')
+    Resister_label = tk.Label(RSframe, text="Resistor (Ohms)")
+    Resister_label.grid(row=1, column=1, columnspan=2, padx=20, pady=10, sticky='n')
 
-    Sampling_label = tk.Label(Data, text="Sampling")
-    Sampling_label.grid(row=3, column=1, padx=20, pady=3, sticky='n')
-    Sampling_entry = tk.Entry(Data, bd=5)
-    Sampling_entry.grid(row=4, column=1, sticky='n')
+    R = tk.IntVar()
+
+    Resister_value = ttk.Combobox(RSframe, text = R)
+    Resister_value['values'] = (
+        1,
+        10,
+        100,
+        1000,
+        10000,
+        'Other'
+        )
+
+    Resister_value.current()
+    Resister_value.grid(row=2, column=1, columnspan=2, padx=10, sticky='n')
+
+    Sampling_label = tk.Label(RSframe, text="Sampling (Hz)")
+    Sampling_label.grid(row=3, column=1, columnspan=2, padx=20, pady=3, sticky='n')
+    Sampling_entry = tk.Entry(RSframe, bd=5)
+    Sampling_entry.grid(row=4, column=1, columnspan=2, padx=20, pady=1, sticky='n')
+    
+    barFrame = tk.Frame(Data)
+    barFrame.grid(row=5, column=0, columnspan=1)
+
+    statusbar = ttk.Progressbar(barFrame, orient=HORIZONTAL, length= 100, mode='indeterminate')
+    statusbar.pack(anchor=tk.E, fill='x')
+
+    Sampling_button = tk.Button(RSframe, text="Submit", command=statusbar.start(10))
+    #Sampling_button.grid(row=4, column=2, pady=2, sticky='e')
+    Sampling_rate = tk.Label(RSframe, text=f"Current Sample Rate: ")
+    Sampling_rate.grid(row=4, column=1, columnspan=2, pady=25, sticky="s")
 
     menubar = tk.Menu(Data)
     filemenu = tk.Menu(Data, menubar, tearoff=0)
+    systemMenu = tk.Menu(Data, menubar, tearoff=0)
+    logmenu = tk.Menu(Data, menubar, tearoff=0)
     filemenu.add_command(label="Open Main menu", command=core)
+    systemMenu.add_command(label="System Setting", command=donothing)
+    systemMenu.add_command(label="Log", command=donothing)
     menubar.add_cascade(label="File", menu=filemenu)
+    menubar.add_cascade(label="System", menu=systemMenu)
 
     Data.config(menu=menubar)
+
+def new_project():
+    nProject = tk.Toplevel(window)
+    nProject.columnconfigure(1, weight= 1, minsize=75)
+    nProject.rowconfigure(1, weight= 1, minsize=50)
+
+    nProject.title("New Project")
+    nProject.geometry('400x200')
+    name_label = tk.Label(nProject, text="Project name")
+    name_label.grid(column=0, row=0)
+
+    name = tk.StringVar()
+
+    name_entry = tk.Entry(nProject, textvariable=name, width=33)
+    name_entry.grid(column=1, row=0, padx=10, pady=10)
+
+    port_Labet = tk.Label(nProject,  text= "COM Number")
+    Com_number = tk.StringVar()
+
+    Com_value = ttk.Combobox(nProject, width=30, text = Com_number)
+    Com_value['values'] = (
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5"
+        )
+
+    port_Labet.grid(column=0, row=1, padx=10, pady=10)
+    Com_value.grid(column=1, row=1, padx=10, pady=10)
+
+    ok_button = tk.Button(nProject, text="OK", width= 5, command=lambda:[Data(), close()])
+    ok_button.grid(column=1, row=2, sticky='w', padx=10, pady=10)
+
+    cancel_button = tk.Button(nProject, text="Cancel", command=nProject.destroy)
+    cancel_button.grid(column=1, row=2, sticky='n', padx=10, pady=10)
+
+    def close():
+        nProject.destroy
+    
+
+def load_project():
+    #file_types = ('text files', '*.txt')
+    file_name = fd.askopenfilename(
+        title= "Open Project",
+        initialdir='/',
+        )
+        #filetypes= file_types)
+
 
 #update the data or Voltage and current
 def update():
     Voltnum = randint(0,5)
     Currentnum = randint(0,5)
     Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
-    Current.set(f"Current = 5 A\n \n dC/dt = {Currentnum} A")
+    Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
     window.after(1000, update)
 
 #test function
@@ -147,6 +266,8 @@ def menu():
 
     #Pack the menu
     window.config(menu=menubar)
+
+
 
 #runs the update
 menu()
