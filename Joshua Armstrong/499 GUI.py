@@ -9,6 +9,7 @@ from time import strftime
 #Example: RTS21-J0123
 #Year 2021, Job 123
 
+# ============= Top level setup
 window = tk.Tk()
 window.title("Power Logger")
 
@@ -19,16 +20,8 @@ window.title("Power Logger")
 window.columnconfigure(1, weight= 1, minsize=75)
 window.rowconfigure(4, weight= 1, minsize=50)
 
-def core():
-    Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=Data)
-    loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=Data)
-    Settingbutton = tk.Button(text= "System Setting", width=11, height=3 , command=Data)
-    Quitbutton = tk.Button(text= "Quit", width=10, height=3 , command=window.quit)
-    Newbutton.grid(row=0, column=0, padx=50, pady=30,)
-    loadbutton.grid(row=0, column=1, padx=50, pady=30,)
-    Settingbutton.grid(row=1, column=0, padx=50, pady=30,)
-    Quitbutton.grid(row=1, column=1, padx=50, pady=30,)
 
+# ============= Globals
 #set inital Voltage and Current texts
 Voltnum = randint(0,5)
 Currentnum = randint(0,5)
@@ -40,6 +33,18 @@ Current = tk.StringVar()
 Current.set(f"Current = 5 A\n \n dC/dt = {Currentnum} A")
 
 #side = tk.LEFT
+
+
+# ============= Event handlers
+def core():
+    Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=Data)
+    loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=Data)
+    Settingbutton = tk.Button(text= "System Setting", width=11, height=3 , command=Data)
+    Quitbutton = tk.Button(text= "Quit", width=10, height=3 , command=window.quit)
+    Newbutton.grid(row=0, column=0, padx=50, pady=30,)
+    loadbutton.grid(row=0, column=1, padx=50, pady=30,)
+    Settingbutton.grid(row=1, column=0, padx=50, pady=30,)
+    Quitbutton.grid(row=1, column=1, padx=50, pady=30,)
 
 def Data():
     Data = tk.Toplevel(window)
@@ -61,7 +66,6 @@ def Data():
 
     Flagbox.insert(1, f"An error has occurred at {time}")
 
-    
     if Currentnum == 3:
         #change this back to 0 after Testing
         i = 1 
@@ -70,7 +74,6 @@ def Data():
         Flagbox.insert(i, f"An error has occurred at {time}")
 
     Flagbox.update()
-
 
     Resister_label = tk.Label(Data, text="Resister")
     Resister_label.grid(row=1, column=1, padx=20, pady=10, sticky='n')
