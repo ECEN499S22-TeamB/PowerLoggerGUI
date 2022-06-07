@@ -24,8 +24,6 @@ window.title("Power Logger")
 window.columnconfigure(1, weight= 1, minsize=75)
 window.rowconfigure(4, weight= 1, minsize=50)
 
-<<<<<<< HEAD
-=======
 def core():
     Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=new_project)
     loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=load_project)
@@ -35,7 +33,6 @@ def core():
     loadbutton.grid(row=0, column=1, padx=50, pady=30,)
     Settingbutton.grid(row=1, column=0, padx=50, pady=30,)
     Quitbutton.grid(row=1, column=1, padx=50, pady=30,)
->>>>>>> origin/master
 
 # ============= Globals
 #set inital Voltage and Current texts
@@ -127,11 +124,7 @@ def Data():
     clear_error.grid(row=3, column=0, sticky='e')
 
     Flagbox.insert(1, f"An error has occurred at {time}")
-<<<<<<< HEAD
-
-=======
     
->>>>>>> origin/master
     if Currentnum == 3:
         #change this back to 0 after Testing
         i = 1 
@@ -141,18 +134,11 @@ def Data():
 
     Flagbox.update()
 
-<<<<<<< HEAD
-    Resister_label = tk.Label(Data, text="Resister")
-    Resister_label.grid(row=1, column=1, padx=20, pady=10, sticky='n')
-    Resister_entry = tk.Entry(Data, bd=5)
-    Resister_entry.grid(row=2, column=1, sticky='n')
-=======
     RSframe =tk.Frame(Data)
     RSframe.grid(row=1, rowspan=4, column=1, columnspan=2, padx=20, pady=20)
 
     Resister_label = tk.Label(RSframe, text="Resistor (Ohms)")
     Resister_label.grid(row=1, column=1, columnspan=2, padx=20, pady=10, sticky='n')
->>>>>>> origin/master
 
     R = tk.IntVar()
 
@@ -197,11 +183,6 @@ def Data():
 
     Data.config(menu=menubar)
 
-<<<<<<< HEAD
-#
-# update
-#
-=======
 def new_project():
     nProject = tk.Toplevel(window)
     nProject.columnconfigure(1, weight= 1, minsize=75)
@@ -252,7 +233,6 @@ def load_project():
 
 
 #update the data or Voltage and current
->>>>>>> origin/master
 def update():
     """Update the data or Voltage and current"""
     Voltnum = randint(0,5)
@@ -324,12 +304,7 @@ def menu():
     window.config(menu=menubar)
 
 
-<<<<<<< HEAD
 # ========= Perform setup, then enter the main program loop
-=======
-
-#runs the update
->>>>>>> origin/master
 menu()
 update()
 core()
