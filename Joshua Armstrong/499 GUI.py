@@ -120,11 +120,11 @@ def Data():
 
     Resister_value = ttk.Combobox(RSframe, text = R)
     Resister_value['values'] = (
+        0.01,
+        0.1,
         1,
+        5,
         10,
-        100,
-        1000,
-        10000,
         'Other'
         )
 
