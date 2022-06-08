@@ -1,6 +1,8 @@
 """
 read_DATAQs.py
-My research into reading data from multiple DATAQs simultaneously
+My research into reading data from multiple DATAQs simultaneously.
+This script will allow the user to connect to an arbitrary number
+of DATAQs and read data from them simultaneously.
 Author: Austin Hilderbrand
 NOTE: A large portion of this code was taken from DI_1100.py
 """
