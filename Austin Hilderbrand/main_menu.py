@@ -12,8 +12,6 @@ import subprocess
 
 
 # ============= Globals
-# Create a new window
-window = tk.Tk()
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -45,7 +43,11 @@ def create_project():
 
 
 # ============= Setup visuals
+# 
+# setup
+#
 def setup():
+    """Setup the GUI."""
     # Configure the window
     window.title("Power Logger: Main Menu")
 
@@ -92,5 +94,6 @@ def setup():
 
 # ============= Run setup and enter event loop
 if __name__ == '__main__':
+    window = tk.Tk() # Create a new window
     setup()
     window.mainloop()
