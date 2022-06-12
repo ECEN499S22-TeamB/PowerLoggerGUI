@@ -1,49 +1,90 @@
+"""
+499_GUI_copy.py
+Copy of Joshua's '499 GUI.py' file with alterations.
+Austin Hilderbrand
+"""
+# =============== Imports
 import tkinter as tk
 from tkinter import filedialog as fd
 from tkinter import HORIZONTAL, ttk
 from tkinter import messagebox
 from random import randint
+from time import strftime   # Get the System time
 
-#get the System time
-from time import strftime
 
-#RTSxx(year)-Jxxxx(job number)
-#Example: RTS21-J0123
-#Year 2021, Job 123
-
+# =============== Globals
+# Create a new window
 window = tk.Tk()
 window.title("Power Logger")
 
-#Set the size of the window
-#window.geometry('1280x720')
 
-#set row and column. needs reworking
-window.columnconfigure(1, weight= 1, minsize=75)
-window.rowconfigure(4, weight= 1, minsize=50)
-
+# =============== Setup functions
+#
+# core
+# 
 def core():
+    """Defines the widgets and layout for the main menu."""
     Newbutton = tk.Button(text= "New Project", width=11, height=3 , command=new_project)
     loadbutton = tk.Button(text= "Load Project", width=11, height=3 , command=load_project)
-    Settingbutton = tk.Button(text= "System Setting\n (Placeholder)", width=11, height=3 , command=Data)
+    Settingbutton = tk.Button(text= "System Setting\n (Placeholder)", width=11, height=3 , command=data)
     Quitbutton = tk.Button(text= "Quit", width=10, height=3 , command=window.quit)
     Newbutton.grid(row=0, column=0, padx=50, pady=30,)
     loadbutton.grid(row=0, column=1, padx=50, pady=30,)
     Settingbutton.grid(row=1, column=0, padx=50, pady=30,)
     Quitbutton.grid(row=1, column=1, padx=50, pady=30,)
 
-#set inital Voltage and Current texts
-Voltnum = randint(0,5)
-Currentnum = randint(0,5)
+#
+# menu
+#
+def menu():
+    """Defines the menubar widgets."""
+    #setting for File menu
+    menubar = tk.Menu(window)
+    filemenu = tk.Menu(menubar, tearoff=0)
+    filemenu.add_command(label="New", command=donothing)
+    filemenu.add_command(label="Open", command=donothing)
+    filemenu.add_command(label="Save", command=donothing)
+    filemenu.add_separator()
+    filemenu.add_command(label="Exit", command=window.quit)
+    menubar.add_cascade(label="File", menu=filemenu)
 
-#DAQVoltage = ----
+    #setting for sampling menu
+    #samplingmenu = tk.Menu(menubar, tearoff=0)
+    #samplingmenu.add_command(label="Sampling Rates", command=Sampling_Window)
+    #menubar.add_cascade(label="Sampling", menu=samplingmenu)
 
-Voltage = tk.IntVar()
-Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
+    #setting for flag menu
+    #flagmenu = tk.Menu(menubar, tearoff=0)
+    #flagmenu.add_command(label="Flags Settings", command=flag_Window)
+    #menubar.add_cascade(label="Flags", menu=flagmenu)
 
-Current = tk.IntVar()
-Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
+    helpmenu = tk.Menu(menubar, tearoff=0)
+    helpmenu.add_command(label="Help Index", command=donothing)
+    helpmenu.add_command(label="About...", command=donothing)
+    menubar.add_cascade(label="Help", menu=helpmenu)
 
-def Data():
+    #Pack the menu
+    window.config(menu=menubar)
+
+#
+# update
+#
+def update():
+    """Update the data, or voltage and current"""
+    Voltnum = randint(0,5)
+    Currentnum = randint(0,5)
+    Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
+    Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
+    window.after(1000, update)
+
+
+# =============== Event handlers
+#
+# data
+#
+def data():
+    """Create a data window.
+    This is the project window."""
     Data = tk.Toplevel(window)
     Data.columnconfigure(2, weight= 1, minsize=75)
     Data.rowconfigure(5, weight= 1, minsize=50)
@@ -159,7 +200,12 @@ def Data():
 
     Data.config(menu=menubar)
 
+#
+# new_project
+#
 def new_project():
+    """Creates a new project window.
+    This is the window which prompts the user for project settings."""
     nProject = tk.Toplevel(window)
     nProject.columnconfigure(1, weight= 1, minsize=75)
     nProject.rowconfigure(1, weight= 1, minsize=50)
@@ -189,17 +235,20 @@ def new_project():
     port_Labet.grid(column=0, row=1, padx=10, pady=10)
     Com_value.grid(column=1, row=1, padx=10, pady=10)
 
-    ok_button = tk.Button(nProject, text="OK", width= 5, command=lambda:[Data(), close()])
+    ok_button = tk.Button(nProject, text="OK", width= 5, command=lambda:[data(), close()])
     ok_button.grid(column=1, row=2, sticky='w', padx=10, pady=10)
 
     cancel_button = tk.Button(nProject, text="Cancel", command=nProject.destroy)
     cancel_button.grid(column=1, row=2, sticky='n', padx=10, pady=10)
 
     def close():
-        nProject.destroy
-    
+            nProject.destroy
 
+#
+# load_project
+#
 def load_project():
+    """Load a project file."""
     #file_types = ('text files', '*.txt')
     file_name = fd.askopenfilename(
         title= "Open Project",
@@ -207,30 +256,34 @@ def load_project():
         )
         #filetypes= file_types)
 
-
-#update the data or Voltage and current
-def update():
-    Voltnum = randint(0,5)
-    Currentnum = randint(0,5)
-    Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
-    Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
-    window.after(1000, update)
-
-#test function
+#
+# donothing
+#
 def donothing():
+    """Test function."""
     messagebox.showinfo('Error', 'No function.')
 
+#
+# log
+#
 def log():
+    """TODO: add description."""
     messagebox.showinfo('Error', 'No log file found.')
 
-#setting for flag window
-def flag_Window():
+#
+# flag_window
+#
+def flag_window():
+    """Setting for flag window."""
     Flags = tk.Toplevel(window)
     Flags.geometry("250x250")
     Flags.title("Flag Setting")
 
-#setting for Sampling Window
-def Sampling_Window():
+#
+# sampling_window
+#
+def sampling_window():
+    """Setting for sampling window"""
     Sampling = tk.Toplevel(window)
     Sampling.geometry("250x250")
     Sampling.title("Sapling Setting")
@@ -240,41 +293,35 @@ def Sampling_Window():
     entry = tk.Entry(Sampling, bd = 5)
     entry.grid(row = 0, column = 1)
 
-def menu():
-    #setting for File menu
-    menubar = tk.Menu(window)
-    filemenu = tk.Menu(menubar, tearoff=0)
-    filemenu.add_command(label="New", command=donothing)
-    filemenu.add_command(label="Open", command=donothing)
-    filemenu.add_command(label="Save", command=donothing)
-    filemenu.add_separator()
-    filemenu.add_command(label="Exit", command=window.quit)
-    menubar.add_cascade(label="File", menu=filemenu)
 
-    #setting for sampling menu
-    #samplingmenu = tk.Menu(menubar, tearoff=0)
-    #samplingmenu.add_command(label="Sampling Rates", command=Sampling_Window)
-    #menubar.add_cascade(label="Sampling", menu=samplingmenu)
+# =============== Setup visuals
+#set row and column. needs reworking
+window.columnconfigure(1, weight= 1, minsize=75)
+window.rowconfigure(4, weight= 1, minsize=50)
 
+#set inital Voltage and Current texts
+Voltnum = randint(0,5)
+Currentnum = randint(0,5)
 
-    #setting for flag menu
-    #flagmenu = tk.Menu(menubar, tearoff=0)
-    #flagmenu.add_command(label="Flags Settings", command=flag_Window)
-    #menubar.add_cascade(label="Flags", menu=flagmenu)
-
-    helpmenu = tk.Menu(menubar, tearoff=0)
-    helpmenu.add_command(label="Help Index", command=donothing)
-    helpmenu.add_command(label="About...", command=donothing)
-    menubar.add_cascade(label="Help", menu=helpmenu)
-
-    #Pack the menu
-    window.config(menu=menubar)
+#DAQVoltage = ----
+Voltage = tk.IntVar()
+Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
+Current = tk.IntVar()
+Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
 
 
-
-#runs the update
+# =============== Run setup, then enter main program loop
 menu()
 update()
 core()
 
 window.mainloop()
+
+
+# =============== Notes
+# RTSxx(year)-Jxxxx(job number)
+# Example: RTS21-J0123
+# Year 2021, Job 123
+
+# Set the size of the window
+# window.geometry('1280x720')

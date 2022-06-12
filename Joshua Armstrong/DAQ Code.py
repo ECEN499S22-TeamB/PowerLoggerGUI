@@ -1,11 +1,4 @@
 """
-device_disc.py
-My research into how python ID's and selects DATAQ's
-Austin Hilderbrand
-NOTE: Most of this code taken from DI_1100.py
-"""
-
-"""
     COPYRIGHT © 2018 BY DATAQ INSTRUMENTS, INC.
 !!!!!!!!    VERY IMPORTANT    !!!!!!!!
 !!!!!!!!    READ THIS FIRST   !!!!!!!!
@@ -26,6 +19,8 @@ The DI-1100 protocol this program uses can be downloaded from the instrument's
 product page:
 https://www.dataq.com/resources/pdfs/misc/di-1100-protocol.pdf
 """
+
+
 import serial
 import serial.tools.list_ports
 import keyboard
@@ -62,42 +57,22 @@ achan_accumulation_table = list(())
 # Define flag to indicate if acquiring is active 
 acquiring = False
 
-
-# ============================================================================
-# discovery
-# ============================================================================
+""" Discover DATAQ Instruments devices and models.  Note that if multiple devices are connected, only the 
+device discovered first is used. We leave it to you to ensure that it's a DI-1100."""
 def discovery():
-    """ Discover DATAQ Instruments devices and models.  Note that if multiple devices are connected, only the 
-    device discovered first is used. We leave it to you to ensure that it's a DI-1100."""
     # Get a list of active com ports to scan for possible DATAQ Instruments devices
     available_ports = list(serial.tools.list_ports.comports())
     # Will eventually hold the com port of the detected device, if any
     hooked_port = "" 
-    found_DAQs = []
-    for port in available_ports:
+    for p in available_ports:
         # Do we have a DATAQ Instruments device?
-        if ("VID:PID=0683" in port.hwid):
+        if ("VID:PID=0683" in p.hwid):
             # Yes!  Dectect and assign the hooked com port
-            found_DAQs.append(port)
-            # hooked_port = port.device
-            # break
-
-    i = 0
-    for DAQ in found_DAQs:
-        """List found DAQs"""
-        i += 1
-        print(f"{i}. {DAQ}")
-        
-    # Select the desired port
-    dev = int(input("Select device: ")) - 1
-    # print(found_DAQs[dev][0]) # DEBUG
-    hooked_port = found_DAQs[dev].device
+            hooked_port = p.device
+            break
 
     if hooked_port:
         print("Found a DATAQ Instruments device on",hooked_port)
-        # print(found_DAQs[dev].hwid)
-        # print(found_DAQs[dev].pid)
-        found_DAQs[dev].pid += dev
         ser.timeout = 0
         ser.port = hooked_port
         ser.baudrate = '115200'
@@ -109,12 +84,8 @@ def discovery():
         input("Press ENTER to try again...")
         return(False)
 
-
-# ============================================================================
-# send_cmd
-# ============================================================================
+# Sends a passed command string after appending <cr>
 def send_cmd(command):
-    """Sends a passed command string after appending <cr>"""
     ser.write((command+'\r').encode())
     time.sleep(.1)
     if not(acquiring):
@@ -134,12 +105,9 @@ def send_cmd(command):
                     print (s)
                     break
 
-
-# ============================================================================
-# config_scn_lst
-# ============================================================================
-def config_scn_lst():    # Scan list position must start with 0 and increment sequentially
-    """Configure the instrument's scan list"""
+# Configure the instrment's scan list
+def config_scn_lst():
+    # Scan list position must start with 0 and increment sequentially
     position = 0
     for item in slist:
         send_cmd("slist "+ str(position ) + " " + str(item))
@@ -147,10 +115,6 @@ def config_scn_lst():    # Scan list position must start with 0 and increment se
         achan_accumulation_table.append(0)
         position += 1
 
-
-# ----------------------------------------------------------------------------
-# Setup hooked DATAQ unit prior to collecting readings
-# ----------------------------------------------------------------------------
 while discovery() == False:
     discovery()
 # Stop in case DI-1100 is already scanning
@@ -183,11 +147,7 @@ achan_number = 0
 # This is the constructed output string
 output_string = ""
 
-
-# ----------------------------------------------------------------------------
-# This is the main program loop, broken only by typing a command key as 
-#   defined
-# ----------------------------------------------------------------------------
+# This is the main program loop, broken only by typing a command key as defined
 while True:
     # If key 'G' start scanning
     if keyboard.is_pressed('g' or  'G'):
