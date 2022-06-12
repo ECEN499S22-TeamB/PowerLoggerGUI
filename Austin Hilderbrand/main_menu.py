@@ -50,6 +50,7 @@ def setup():
     """Setup the GUI."""
     # Configure the window
     window.title("Power Logger: Main Menu")
+    window.resizable(False, False)      # Don't make window resizable
 
     # Configure the window grid
     window.columnconfigure(0, minsize=300, weight=1)
