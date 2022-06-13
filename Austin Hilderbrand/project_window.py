@@ -12,12 +12,24 @@ import time
 
 
 # ============= Globals
+# Windows
+project_window = None
+settings_window = None
+
 # Project settings
 # TODO: figure out how to get the real values from Project Settings window
 device_name = "Device1"
 com_port = "COM1"
-shunt_resistor = 5 # Ohms
-sample_rate = 1 # Hz
+shunt_resistor = 5  # Ohms
+sample_rate = 1     # Hz
+flag_trigger = 0.5  # V
+# Output strings
+settings_details = f"""
+    Device Name: \t\t{device_name}\t\t\tFlag Trigger: \u00B1 {flag_trigger} V
+    COM Port: \t\t{com_port}
+    Shunt Resistor: \t\t{shunt_resistor} \u03A9
+    Sample Rate: \t\t{sample_rate} Hz
+    """
 
 # Device levels
 # TODO: integrate DATAQ code and assign real values
@@ -25,23 +37,16 @@ volts = 20
 amps = 1
 
 # Flagging
-lbl_flags_beacon = None # Make this widget global
+lbx_flags_details = None    # Make this widget global
+flags_list = []             # Start with empty list for the listbox
+flags_details = None        # Make StringVar type
+lbl_flags_beacon = None     # Make this widget global
 flag = False
 
-# Output strings ---------------------------------------
-# Settings
-settings_details = f"""
-    Device Name: \t\t{device_name}
-    COM Port: \t\t{com_port}
-    Shunt Resistor: \t\t{shunt_resistor} \u03A9
-    Sample Rate: \t\t{sample_rate} Hz
-    """
-
-# Flagging
-flags_details = ""
-
 # Readings history
-history_details = ""
+lbx_flags_details = None    # Make 
+history_list = []           # Start with empty list for the listbox
+history_details = None      # Make StringVar type
 
 # Status
 status = "<placeholder>"
@@ -57,15 +62,16 @@ def toggle_flag():
     flag = not flag
 
 #
-# change_color
+# flash_beacon
 #
 def flash_beacon():
     """Enable or disable the flashing beacon."""
+    global project_window # Connect to the global variable
     if flag:
         change_color()
     else:
         lbl_flags_beacon.config(bg="white") # If no flag, make bg white
-    window.after(200, flash_beacon)         # Run every 200 ms
+    project_window.after(200, flash_beacon)         # Run every 200 ms
 
 #
 # change_color
@@ -78,6 +84,24 @@ def change_color():
     else:
         next_color = "red"
     lbl_flags_beacon.config(background=next_color)
+
+# 
+# update_flags_details
+#
+def update_flags_details(i=0):
+    """Update the flags details listbox."""
+    global flags_list        # Connect to the global variables
+    global flags_details     #
+    global lbx_flags_details #
+    flags_list.append(f"ERROR{i}\n") # DEBUG
+    i += 1 # DEBUG
+    if not flags_details:
+        flags_details = tk.StringVar(value=flags_list)
+    else:
+        flags_details.set(flags_list)
+    lbx_flags_details['listvariable'] = flags_details # Update the widget
+    lbx_flags_details.see("end") # Keep latest output in view
+    project_window.after(1000, update_flags_details, i)
 
 
 # ============= Event handlers
@@ -93,61 +117,64 @@ def donothing():
 #
 def ask_close():
     """Confirm the user wants to close the window."""
+    global project_window # Connect to the global variable
     if messagebox.askokcancel(
         message="Are you sure you want to close the window?", 
         icon='warning', title="Please confirm."):
-        window.destroy()
+        project_window.destroy()
 
 # ============= Setup visuals
 #
-# setup
+# setup_project_window
 #
-def setup():
-    """Setup the GUI."""
+def setup_project_window():
+    """Setup the Project Window GUI."""
+    global project_window       # Connect to the global variable
+    project_window = tk.Tk()    # Create a new project window
     # TODO: Redo layout with grid for more robustness?
     # Configure the window -----------------------------
-    window.title("Power Logger: Project Window")
-    window.geometry('600x750-10+10')    # Place in upper right screen
-    window.resizable(False, False)      # Don't make window resizable
+    project_window.title("Power Logger: Project Window")
+    project_window.geometry('600x750-10+10')    # Place in upper right screen
+    project_window.resizable(False, False)      # Don't make window resizable
 
     # Intercept the close button
-    window.protocol("WM_DELETE_WINDOW", ask_close)
+    project_window.protocol("WM_DELETE_WINDOW", ask_close)
 
     # Create frames ------------------------------------
     frm_settings = tk.Frame(
-        master=window,
+        master=project_window,
         relief=tk.GROOVE, 
         borderwidth=2)
     frm_settings_details = tk.Frame(
-        master=window,
+        master=project_window,
         relief=tk.GROOVE, 
         borderwidth=2)
     frm_levels = tk.Frame(
-        master=window, 
+        master=project_window, 
         relief=tk.GROOVE, 
         borderwidth=2)
     frm_levels_details = tk.Frame(
-        master=window, 
+        master=project_window, 
         relief=tk.GROOVE, 
         borderwidth=2)
     frm_flags = tk.Frame(
-        master=window,
+        master=project_window,
         relief=tk.GROOVE,
         borderwidth=2)
     frm_flags_details = tk.Frame(
-        master=window,
+        master=project_window,
         relief=tk.GROOVE,
         borderwidth=2)
     frm_history = tk.Frame(
-        master=window,
+        master=project_window,
         relief=tk.GROOVE,
         borderwidth=2)
     frm_history_details = tk.Frame(
-        master=window,
+        master=project_window,
         relief=tk.GROOVE,
         borderwidth=2)
     frm_status = tk.Frame(
-        master=window, 
+        master=project_window, 
         relief=tk.GROOVE,
         borderwidth=2)
 
@@ -239,14 +266,16 @@ def setup():
     btn_toggle_flag.pack(side=tk.RIGHT)
 
     # Setup flags frame (details) ----------------------
+    global flags_details     # Connect to the global variables
+    global lbx_flags_details #
     # Create widgets
-    lbl_flags_details = tk.Label(
+    lbx_flags_details = tk.Listbox(
         frm_flags_details,
-        text=flags_details,
-        height=5,
+        listvariable=flags_details,
+        height=4,
         bg="white")
     # Pack widgets
-    lbl_flags_details.pack(fill=tk.BOTH)
+    lbx_flags_details.pack(fill=tk.BOTH)
 
     # Setup readings history frame (header) ------------
     # Create widgets
@@ -258,15 +287,17 @@ def setup():
     lbl_history_header.pack(side=tk.LEFT)
 
     # Setup readings history frame (details) -----------
+    global history_details     # Connect to the global variables
+    global lbx_history_details #
     # Create widgets
-    lbl_history_details = tk.Label(
+    lbx_history_details = tk.Listbox(
         frm_history_details,
-        text=history_details,
+        listvariable=history_details,
         bg="white",
         height=21
     )
     # Pack widgets
-    lbl_history_details.pack(fill=tk.BOTH)
+    lbx_history_details.pack(fill=tk.BOTH)
 
     # Setup status frame
     # Create widgets
@@ -296,10 +327,21 @@ def setup():
     frm_history_details.pack(fill=tk.BOTH)
     frm_status.pack(fill=tk.X)
 
+#
+# setup_settings_window
+#
+def open_settings_window():
+    """Setup the Project Settings GUI."""
+    global settings_window  # Connect to the global variable
+    # TODO: add code here
+
+
 
 # # ============= Run setup and enter event loop
 if __name__ == '__main__':
-    window = tk.Tk() # Create a new window
-    setup()
-    window.after(200, flash_beacon)
-    window.mainloop()
+    # open_settings_window()
+    # settings_window.main
+    setup_project_window()
+    project_window.after(200, flash_beacon)
+    project_window.after(1000, update_flags_details)
+    project_window.mainloop()
