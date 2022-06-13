@@ -37,11 +37,17 @@ Currentnum = randint(0,5)
 
 #DAQVoltage = ----
 
+DAQ_Voltage = tk.StringVar() 
 Voltage = tk.IntVar()
-Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
 
+Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
+#Voltage.set(f"Voltage = {DAQ_Voltage} V\n \n dV/dt = {Voltnum} V")
+
+DAQ_Current = tk.StringVar() 
 Current = tk.IntVar()
+
 Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
+#Current.set(f"Current = {DAQ_Current} A\n \n dI/dt = {Currentnum} A")
 
 def Data():
     Data = tk.Toplevel(window)
@@ -212,8 +218,10 @@ def load_project():
 def update():
     Voltnum = randint(0,5)
     Currentnum = randint(0,5)
-    Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")
+    Voltage.set(f"Voltage = 5 V\n \n dV/dt = {Voltnum} V")  
+    #Voltage.set(f"Voltage = {DAQ_Voltage} V\n \n dV/dt = {Voltnum} V")
     Current.set(f"Current = 5 A\n \n dI/dt = {Currentnum} A")
+    #Current.set(f"Current = {DAQ_Current} A\n \n dI/dt = {Currentnum} A")
     window.after(1000, update)
 
 #test function
@@ -270,11 +278,11 @@ def menu():
     #Pack the menu
     window.config(menu=menubar)
 
-
-
 #runs the update
 menu()
 update()
 core()
+
+
 
 window.mainloop()
