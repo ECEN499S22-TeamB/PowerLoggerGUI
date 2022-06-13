@@ -45,6 +45,7 @@ flags_details = []
 
 for i in range(0, 999):
     flags_details.append(f"Flag{i}\n")
+    x = 0
 
 print(flags_details)
 
@@ -256,7 +257,16 @@ def setup():
         height=5,
         bg="white")
     # Pack widgets
+
+    lbl_flags_details.see("end")
+
+    sb_flags_scrollbar = tk.Scrollbar(lbl_flags_details, orient= tk.VERTICAL)
+    sb_flags_scrollbar.config(command=lbl_flags_details.yview)
+    sb_flags_scrollbar.pack(side="right", fill="y")
+
+
     lbl_flags_details.pack(fill=tk.BOTH)
+
 
 
 

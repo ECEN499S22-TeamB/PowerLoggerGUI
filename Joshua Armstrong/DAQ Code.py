@@ -235,3 +235,5 @@ while True:
                 achan_number = 0
 ser.close()
 SystemExit
+
+#dig_in might be the voltage varible need to review
