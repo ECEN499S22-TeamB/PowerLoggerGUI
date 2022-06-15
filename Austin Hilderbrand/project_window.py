@@ -6,8 +6,9 @@ Author: Austin Hilderbrand
 
 # ============= Imports
 import tkinter as tk
+import tkinter.ttk as ttk
+# from ttkthemes import ThemedTk
 from tkinter import messagebox
-from os import device_encoding
 import time
 import sys
 
@@ -25,6 +26,7 @@ settings_window = None
 
 # Project settings --------------------------------------------------
 # TODO: figure out how to get the real values from Project Settings window
+# project_settings dictionary (will get written to JSON)
 project_settings = {
     "Project ID": project_ID,
     "Settings": {
@@ -42,7 +44,7 @@ shunt_resistor = project_settings["Settings"]["Shunt Resistor"]
 decimation = project_settings["Settings"]["Decimation"]
 flag_trigger = project_settings["Settings"]["Flag Trigger"]
 
-# Output strings
+# Starting output string
 settings_details = f"Device Name: \n" +\
     f"COM Port: \n" +\
     f"Shunt Resistor: \n" +\
@@ -54,6 +56,14 @@ settings_details = f"Device Name: \n" +\
 #     f"Shunt Resistor: \t\t{shunt_resistor} \u03A9\n" +\
 #     f"Decimation Factor: \t{decimation} samples/update\n" +\
 #     f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
+
+# COM ports
+lbx_com_port = None    # Make this widget global
+com_ports_list = []     # Start with empty list for thee listbox
+active_com_ports = None # Make StringVar type
+
+# Shunt Resistor
+resistor_values = [0.01, 0.1, 1, 5, 10]
 
 # Device levels -----------------------------------------------------
 # TODO: integrate DATAQ code and assign real values
@@ -68,12 +78,13 @@ lbl_flags_beacon = None     # Make this widget global
 flag = False
 
 # Readings history --------------------------------------------------
-lbx_flags_details = None    # Make 
+lbx_history_details = None    # Make 
 history_list = []           # Start with empty list for the listbox
 history_details = None      # Make StringVar type
 
 # Status ------------------------------------------------------------
 status = "<placeholder>"
+pgr_status_bar = None
 
 
 # ============= mainloop functions
@@ -127,6 +138,29 @@ def update_flags_details(i=0):
     lbx_flags_details.see("end") # Keep latest output in view
     project_window.after(1000, update_flags_details, i)
 
+#
+# update_com_ports
+#
+def update_com_ports():
+    """Update the active COM ports list (accessed by settings window)."""
+    global lbx_com_port     # Connect to the global variables
+    global com_ports_list   #
+    global active_com_ports #
+
+    # Is the settings_window running?
+    try:
+        if settings_window.state() == "normal":
+            # If so, update the widget
+            com_ports_list = ['COM1', 'COM3', 'COM5'] # DEBUG
+            if not active_com_ports:
+                active_com_ports = tk.StringVar(value=com_ports_list)
+            else:
+                active_com_ports.set(com_ports_list)
+            lbx_com_port['listvariable'] = active_com_ports # Update the widget
+            project_window.after(1000, update_com_ports)
+    except:
+        project_window.after(1000, update_com_ports)        
+
 
 # ============= Event handlers
 #
@@ -158,11 +192,16 @@ def setup_project_window():
     # TODO: Redo layout with grid for more robustness?
     # Configure the window -----------------------------
     project_window.title(f"Power Logger: Project <{project_ID}> Window")
+    project_window.attributes('-topmost', True)
     project_window.geometry('600x750-10+10')    # Place in upper right screen
     project_window.resizable(False, False)      # Don't make window resizable
 
     # Intercept the close button
     project_window.protocol("WM_DELETE_WINDOW", ask_close)
+
+    # Create a ttk style instance
+    style = ttk.Style(project_window)
+    style.theme_use('clam') # Choose the theme for ttk frames/widgets
 
     # Create frames ------------------------------------
     frm_settings = tk.Frame(
@@ -202,6 +241,17 @@ def setup_project_window():
         relief=tk.GROOVE,
         borderwidth=2)
 
+    # Create the File menu widget
+    menubar = tk.Menu(project_window)   # Create the menubar
+    menu_file = tk.Menu(menubar, tearoff=0)
+    menu_file.add_command(label="Exit", command=ask_close)
+    menubar.add_cascade(label="File", menu=menu_file)
+
+    # Create the Help menu widget
+    menu_help = tk.Menu(menubar, tearoff=0)
+    menu_help.add_command(label="About", command=donothing)
+    menubar.add_cascade(label="Help", menu=menu_help)
+
     # Setup settings frame (header) --------------------
     # Create widgets
     lbl_settings_header = tk.Label(
@@ -236,8 +286,26 @@ def setup_project_window():
         frm_levels, 
         text="Device Levels", 
         font="tkHeadingFont")
+    btn_start = tk.Button(
+        frm_levels,
+        text="Start",
+        width=15, 
+        relief=tk.GROOVE, 
+        borderwidth=2, 
+        bg="#c9c9c9",
+    )
+    btn_stop = tk.Button(
+        frm_levels,
+        text="Stop",
+        width=15, 
+        relief=tk.GROOVE, 
+        borderwidth=2, 
+        bg="#c9c9c9",
+    )
     # Pack widgets
     lbl_levels_header.pack(side=tk.LEFT)
+    btn_stop.pack(side=tk.RIGHT)
+    btn_start.pack(side=tk.RIGHT)
 
     # Setup device levels frame (details) --------------
     # Create widgets
@@ -294,7 +362,8 @@ def setup_project_window():
     global flags_details     # Connect to the global variables
     global lbx_flags_details #
     # Create widgets
-    lbx_flags_details = tk.Listbox(
+    lbx_flags_details = tk.Listbox( 
+        # TODO: replace Listbox with something else?
         frm_flags_details,
         listvariable=flags_details,
         height=4,
@@ -324,24 +393,26 @@ def setup_project_window():
     # Pack widgets
     lbx_history_details.pack(fill=tk.BOTH)
 
-    # Setup status frame
+    # Setup status frame -------------------------------
+    global pgr_status_bar # Connect to the global variable
     # Create widgets
     lbl_status = tk.Label(
-        # TODO: finish this widget
         frm_status,
         text=status)
-    lbl_status_beacon = tk.Label(
-        # TODO: finish this widget
+    # Create and configure the ttk Progressbar widget
+    style.configure('white.Horizontal.TProgressbar', background="green")
+    pgr_status_bar = ttk.Progressbar(
         frm_status,
-        relief=tk.SUNKEN,
-        borderwidth=2,
-        width=15,
-        bg="white")
+        style='white.Horizontal.TProgressbar',
+        orient=tk.HORIZONTAL,
+        length=100,
+        mode="indeterminate")
     # Pack widgets
     lbl_status.pack(side=tk.LEFT)
-    lbl_status_beacon.pack(side=tk.RIGHT)
+    pgr_status_bar.pack(side=tk.RIGHT)
 
     # Pack frames in window ----------------------------
+    project_window['menu'] = menubar
     frm_settings.pack(fill=tk.X)
     frm_settings_details.pack(fill=tk.X)
     frm_levels.pack(fill=tk.X)
@@ -370,15 +441,127 @@ def open_settings_window():
         settings_window = tk.Toplevel(project_window)
 
     # Configure the window -----------------------------
-    settings_window.attributes("-topmost", True)
+    settings_window.lift(project_window)
     settings_window.geometry('400x200-10+10')
+    settings_window.resizable(False, False)
 
+    # Create frames ------------------------------------
+    frm_device_name = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2) 
+    frm_com_port = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2) 
+    frm_shunt_resistor = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2) 
+    frm_decimation = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2)
+    frm_flag_trigger = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2) 
+    frm_okaycancel = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2) 
+
+    # Setup device name frame --------------------------
+    # Create widgets
+    lbl_device_name = tk.Label(
+        frm_device_name,
+        text="Device Name",
+        anchor="w",
+        width=25)
+    ent_device_name = tk.Entry(
+        frm_device_name,
+        width=15,
+        relief=tk.GROOVE,
+        borderwidth=2)
+    # Pack widgets
+    lbl_device_name.pack(side=tk.LEFT)
+    ent_device_name.pack(side=tk.LEFT)
+
+    # Setup com port frame -----------------------------
+    global lbx_com_port # Connect to the global variable
+    # Create widgets
+    lbl_com_port = tk.Label(
+        frm_com_port,
+        text="COM Port",
+        anchor="w",
+        width=25)
+    lbx_com_port = tk.Listbox(
+        frm_com_port,
+        listvariable=active_com_ports,
+        width=15,
+        height=1,
+        relief=tk.GROOVE,
+        borderwidth=2)
+    # Pack widgets
+    lbl_com_port.pack(side=tk.LEFT)
+    lbx_com_port.pack(side=tk.LEFT)
+
+    # Setup shunt resistor frame -----------------------
+    # Create widgets
+    lbl_shunt_resistor = tk.Label(
+        frm_shunt_resistor,
+        text="Shunt Resistor Value",
+        anchor="w",
+        width=25)
+    cmb_shunt_resistor = ttk.Combobox(
+        frm_shunt_resistor,
+        values=resistor_values,
+        width=13)
+    lbl_resistor_units = tk.Label(
+        frm_shunt_resistor,
+        text="\u03A9",
+        anchor="w",
+        width=15)
+    # Pack widgets
+    lbl_shunt_resistor.pack(side=tk.LEFT)
+    cmb_shunt_resistor.pack(side=tk.LEFT)
+    lbl_resistor_units.pack(side=tk.LEFT)
+
+    # Setup decimation factor frame --------------------
+    # Create widgets
+    lbl_decimation = tk.Label(
+        frm_decimation,
+        text="Decimation Factor",
+        anchor="w",
+        width=25)
+    cmb_decimation = tk.Entry(
+        frm_decimation,
+        width=15)
+    lbl_decimation_units = tk.Label(
+        frm_decimation,
+        text="samples/update",
+        anchor="w",
+        width=15)
+    # Pack widgets
+    lbl_decimation.pack(side=tk.LEFT)
+    cmb_decimation.pack(side=tk.LEFT)
+    lbl_decimation_units.pack(side=tk.LEFT)
+
+    # Pack frames in window
+    frm_device_name.pack(fill=tk.X)
+    frm_com_port.pack(fill=tk.X)
+    frm_shunt_resistor.pack(fill=tk.X)
+    frm_decimation.pack(fill=tk.X)
+    frm_flag_trigger.pack(fill=tk.X)
+    frm_okaycancel.pack(fill=tk.BOTH)
 
 
 # # ============= Run setup and enter event loop
 if __name__ == '__main__':
     setup_project_window()
     open_settings_window()
+    pgr_status_bar.start(10) # DEBUG
     project_window.after(200, flash_beacon)
     project_window.after(1000, update_flags_details)
+    project_window.after(1000, update_com_ports)
     project_window.mainloop()
