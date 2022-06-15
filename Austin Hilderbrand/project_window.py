@@ -5,50 +5,74 @@ Author: Austin Hilderbrand
 """
 
 # ============= Imports
-from os import device_encoding
 import tkinter as tk
 from tkinter import messagebox
+from os import device_encoding
 import time
+import sys
 
 
 # ============= Globals
-# Windows
+# Command line args passed from caller (main_menu.py) ---------------
+if len(sys.argv) < 2:
+    project_ID = -1 # For testing purposes
+else:
+    project_ID = int(sys.argv[1]) # Unique Project ID
+
+# Windows -----------------------------------------------------------
 project_window = None
 settings_window = None
 
-# Project settings
+# Project settings --------------------------------------------------
 # TODO: figure out how to get the real values from Project Settings window
-device_name = "Device1"
-com_port = "COM1"
-shunt_resistor = 5  # Ohms
-sample_rate = 1     # Hz
-flag_trigger = 0.5  # V
-# Output strings
-settings_details = f"""
-    Device Name: \t\t{device_name}\t\t\tFlag Trigger: \u00B1 {flag_trigger} V
-    COM Port: \t\t{com_port}
-    Shunt Resistor: \t\t{shunt_resistor} \u03A9
-    Sample Rate: \t\t{sample_rate} Hz
-    """
+project_settings = {
+    "Project ID": project_ID,
+    "Settings": {
+        "Device Name": "",
+        "COM Port": "",
+        "Shunt Resistor": None, # Ohms
+        "Decimation": None,     # samples/update
+        "Flag Trigger": None    # A
+    }
+}
 
-# Device levels
+device_name = project_settings["Settings"]["Device Name"]
+com_port = project_settings["Settings"]["COM Port"]
+shunt_resistor = project_settings["Settings"]["Shunt Resistor"]
+decimation = project_settings["Settings"]["Decimation"]
+flag_trigger = project_settings["Settings"]["Flag Trigger"]
+
+# Output strings
+settings_details = f"Device Name: \n" +\
+    f"COM Port: \n" +\
+    f"Shunt Resistor: \n" +\
+    f"Decimation Factor: \n" +\
+    f"Flag Trigger: "
+
+# settings_details = f"Device Name: \t\t{device_name}\n" +\
+#     f"COM Port: \t\t{com_port}\n" +\
+#     f"Shunt Resistor: \t\t{shunt_resistor} \u03A9\n" +\
+#     f"Decimation Factor: \t{decimation} samples/update\n" +\
+#     f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
+
+# Device levels -----------------------------------------------------
 # TODO: integrate DATAQ code and assign real values
 volts = 20
 amps = 1
 
-# Flagging
+# Flagging ----------------------------------------------------------
 lbx_flags_details = None    # Make this widget global
 flags_list = []             # Start with empty list for the listbox
 flags_details = None        # Make StringVar type
 lbl_flags_beacon = None     # Make this widget global
 flag = False
 
-# Readings history
+# Readings history --------------------------------------------------
 lbx_flags_details = None    # Make 
 history_list = []           # Start with empty list for the listbox
 history_details = None      # Make StringVar type
 
-# Status
+# Status ------------------------------------------------------------
 status = "<placeholder>"
 
 
@@ -133,7 +157,7 @@ def setup_project_window():
     project_window = tk.Tk()    # Create a new project window
     # TODO: Redo layout with grid for more robustness?
     # Configure the window -----------------------------
-    project_window.title("Power Logger: Project Window")
+    project_window.title(f"Power Logger: Project <{project_ID}> Window")
     project_window.geometry('600x750-10+10')    # Place in upper right screen
     project_window.resizable(False, False)      # Don't make window resizable
 
@@ -190,7 +214,8 @@ def setup_project_window():
         width=15, 
         relief=tk.GROOVE, 
         borderwidth=2, 
-        bg="#c9c9c9")
+        bg="#c9c9c9",
+        command=open_settings_window)
     # Pack widgets
     lbl_settings_header.pack(side=tk.LEFT)
     btn_settings_edit.pack(side=tk.RIGHT)
@@ -294,7 +319,7 @@ def setup_project_window():
         frm_history_details,
         listvariable=history_details,
         bg="white",
-        height=21
+        height=22
     )
     # Pack widgets
     lbx_history_details.pack(fill=tk.BOTH)
@@ -332,16 +357,28 @@ def setup_project_window():
 #
 def open_settings_window():
     """Setup the Project Settings GUI."""
-    global settings_window  # Connect to the global variable
-    # TODO: add code here
+    global project_window  # Connect to the global variables
+    global settings_window #
+    
+    try:
+        # If a settings window is already open, exit
+        if settings_window.state() == "normal":
+            return # TODO: add more functionality here
+    except:
+        # If not, open a new settings window
+        settings_window = None
+        settings_window = tk.Toplevel(project_window)
+
+    # Configure the window -----------------------------
+    settings_window.attributes("-topmost", True)
+    settings_window.geometry('400x200-10+10')
 
 
 
 # # ============= Run setup and enter event loop
 if __name__ == '__main__':
-    # open_settings_window()
-    # settings_window.main
     setup_project_window()
+    open_settings_window()
     project_window.after(200, flash_beacon)
     project_window.after(1000, update_flags_details)
     project_window.mainloop()

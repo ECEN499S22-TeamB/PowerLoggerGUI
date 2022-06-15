@@ -12,6 +12,10 @@ import subprocess
 
 
 # ============= Globals
+project_ID = 0 # A unique ID sent to each new project
+# TODO: add code to initialize project_ID based on length
+#   of JSON projects array
+#   (don't want to start at 0 every time this script is run)
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -38,7 +42,10 @@ def ask_close():
 #
 def create_project():
     """Launch a new project window."""
-    subprocess.Popen(['python', dir_path+'\project_window.py']) 
+    global project_ID # Connect to global variable
+    subprocess.Popen(
+        ['python', dir_path+'\project_window.py', str(project_ID)])
+    project_ID += 1 # Increment for next project
     # TODO: Improve cross-platform compatibility?
 
 
