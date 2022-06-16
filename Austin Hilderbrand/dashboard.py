@@ -1,6 +1,6 @@
 """
-main_menu.py
-This script will launch the Power Logger main menu.
+dashboard.py
+This script will launch the Power Logger dashboard.
 Author: Austin Hilderbrand
 """
 
