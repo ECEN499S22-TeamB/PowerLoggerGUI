@@ -127,6 +127,7 @@ def create_job():
     frm_okcancel.grid(row=2, column=0, sticky='nsew')
 
     # Create widgets -----------------------------------
+    # TODO: prevent the user from inputing a number greater than 4 digits
     lbl_prompt = tk.Label(
         job_num_window,
         text="Please enter a job number.")
