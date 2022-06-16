@@ -3,6 +3,10 @@
 Copy of Joshua's '499 GUI.py' file with alterations.
 Austin Hilderbrand
 """
+#RTSxx(year)-Jxxxx(job number)
+#Example: RTS21-J0123
+#Year 2021, Job 123
+
 # =============== Imports
 import tkinter as tk
 from tkinter import filedialog as fd
