@@ -1,5 +1,10 @@
 """
-Power Logger GUI
+job_window.py
+This script launches a new data collection window. 
+Author: Austin Hilderbrand
+"""
+
+"""
 ECEN 499 Senior Project
 Instructor: Kevin Smith
     208-496-7612
@@ -36,23 +41,3 @@ To change branches
 To check status/verify branch
     git status
 """
-
-# Setup visuals --------------------------------------------------------------
-# Import Tkinter
-import tkinter as tk
-
-# Create a new window
-window = tk.Tk()
-
-# TODO: setup remaining visuals
-# ----------------------------------------------------------------------------
-
-
-# Wait for user input --------------------------------------------------------
-window.mainloop()   # CRITICAL: script won't work without this
-# ----------------------------------------------------------------------------
-
-
-# Functions for interactive widgets ------------------------------------------
-# TODO: add functions for interactive widgets?
-# ----------------------------------------------------------------------------
