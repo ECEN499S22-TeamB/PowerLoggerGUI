@@ -258,6 +258,8 @@ def setup():
         bg="white")
     # Pack widgets
 
+    #------------------------------------------------------------------------
+    #Josh added code
     lbl_flags_details.see("end")
 
     sb_flags_scrollbar = tk.Scrollbar(lbl_flags_details, orient= tk.VERTICAL)
@@ -266,7 +268,7 @@ def setup():
 
 
     lbl_flags_details.pack(fill=tk.BOTH)
-
+    #------------------------------------------------------------------------
 
 
 
@@ -325,3 +327,6 @@ if __name__ == '__main__':
     setup()
     window.after(200, flash_beacon)
     window.mainloop()
+
+
+    #Boo
