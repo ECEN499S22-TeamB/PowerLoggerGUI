@@ -91,18 +91,11 @@ def create_job():
     btn_cancel.grid(row=0, column=2, sticky='w')
 
 
-#def save_file():
-#    """Save the current file as a new file."""
-#    filepath = asksaveasfilename(
-#        defaultextension=".txt",
-#        filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
-#    )
-#    if not filepath:
-#        return
-#    with open(filepath, mode="w", encoding="utf-8") as output_file:
-#        text = txt_edit.get("1.0", tk.END)
-#        output_file.write(text)
-#    window.title(f"Simple Text Editor - {filepath}")
+def active_window():
+        subprocess.Popen(
+            ['python', dir_path+'\Active_Window.py'])
+        # TODO: Improve cross-platform compatibility?
+        # TODO: change file name to the correct file.
 
 
 def widget():
@@ -123,7 +116,7 @@ def widget():
     frm_buttons = tk.Frame(window, relief=tk.RAISED, bd=2)
     btn_open = tk.Button(frm_buttons, width= 12, height=3, text="New Project", command=create_job)
     btn_save = tk.Button(frm_buttons, width= 12, height=3, text="Load Project",)
-    btn_active = tk.Button(frm_buttons, width= 12, height=3,  text="Active Window",)
+    btn_active = tk.Button(frm_buttons, width= 12, height=3,  text="Active Window", command=active_window)
 
     # Assign buttons to frame
     btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
@@ -134,7 +127,7 @@ def widget():
     frm_buttons.grid(row=0, column=0, sticky="ns")
     lbl_output.grid(row=0, column=1, sticky="nsew")
 
-    window.after(1000, widget)
+    #window.after(1000, widget)
 
 
 

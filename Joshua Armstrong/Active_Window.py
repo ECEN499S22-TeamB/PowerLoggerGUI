@@ -63,7 +63,7 @@ def active_DUT():
 
     lbl_voltage = tk.Label(
         frm_row_settings,
-        text="Volage = #",
+        text="Voltage = #",
         width=20,
         height=2,
         relief= tk.SOLID,
@@ -109,9 +109,9 @@ def active_DUT():
 def add_DUT():
     add_button = tk.Button(
         test_window,
-        text="add",
+        text="Testing Button",
         height=5,
-        width=10,
+        width=12,
         command=active_DUT
         )
 
