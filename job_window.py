@@ -474,7 +474,7 @@ def setup_job_window():
         frm_history_details,
         listvariable=history_details,
         bg="white",
-        height=22
+        height=21
     )
     # Pack widgets
     lbx_history_details.pack(fill=tk.BOTH)
