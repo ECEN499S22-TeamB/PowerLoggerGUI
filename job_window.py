@@ -51,7 +51,6 @@ import sys
 from datetime import date
 import serial
 import serial.tools.list_ports
-import keyboard
 
 
 # ============= Globals
@@ -107,9 +106,10 @@ active_com_ports = None # Make StringVar type
 resistor_values = [0.01, 0.1, 1, 5, 10]
 
 # Device levels ----------------------------------------
-# TODO: integrate DATAQ code and assign real values
-volts = 20
-amps = 1
+lbl_voltage = None
+lbl_current = None
+volts = 0.00
+amps = 0.00
 
 # Flagging ---------------------------------------------
 lbx_flags_details = None    # Make this widget global
@@ -146,45 +146,146 @@ hooked_ports = {}
 hooked_port = None  # Will hold complete port info
 com_port = ""       # Will hold hooked_port.device string (ex. "COM5")
 
-# Contains accumulated values for each analog channel used for the average calculation
+# Contains accumulated values for each analog channel 
+# used for the average calculation
 achan_accumulation_table = list(())
 
 # Define flag to indicate if acquiring is active 
 acquiring = False
 
+# Used during data collection process
+dec_count = None
+slist_pointer = 0
+achan_number = 0
+
 
 # ============= mainloop functions
 #
-# toggle_flag
-#
-def toggle_flag():
-    """Toggles the flag for testing purposes."""
-    global flag # Connect with the global variable
-    flag = not flag
+# next_reading
+def update_levels():
+    """Complete a decimation loop and update device levels with
+    averaged values."""
+    # Connect to global variables ----------------------
+    global lbl_voltage
+    global lbl_current
+    global volts
+    global amps
+    global dec_count
+    global slist_pointer
+    global achan_accumulation_table
+    global achan_number
+
+    if not acquiring:
+        return
+    
+    # TODO: this currently reads from all 4 analog input channels,
+    # while only 2 are needed for this job. Change this(?)
+    while (ser.inWaiting() > (2 * len(slist))):
+         for i in range(len(slist)):
+            # Always two bytes per sample...read them
+            bytes = ser.read(2)
+            # Only analog channels for a DI-1100, with dig_in states appearing
+            # in the two LSBs of ONLY the first slist position
+            result = int.from_bytes(bytes,byteorder='little', signed=True)
+
+            # Since digital input states are embedded into the analog data 
+            # stream there are four possibilities:
+            if (dec_count == 1) and (slist_pointer == 0):
+                # Decimation loop finished and first slist position
+                # Two LSBs carry information only for first slist posiiton.
+                # So, ... Preserve lower two bits representing digital input 
+                # states
+                dig_in = result & 0x3
+                # Strip two LSBs from value to be added to the analog channel 
+                # accumulation, preserving sign
+                result = result >> 2
+                result = result << 2
+                # Add the value to the accumulator
+                achan_accumulation_table[achan_number] = result + \
+                    achan_accumulation_table[achan_number]
+                achan_number += 1
+                # End of a decimation loop. So, 
+                # volts = accumulator value / decimation_factor
+                volts = achan_accumulation_table[achan_number-1] * \
+                    10 / 32768 / decimation
+                # output_string = output_string + "{: 3.3f}, "\
+                # .format(achan_accumulation_table[achan_number-1] * \
+                # 10 / 32768 / decimation)
+
+            elif (dec_count == 1) and (slist_pointer != 0):
+                # Decimation loop finished and NOT the first slist position
+                # Two LSBs carry information only for first slist posiiton, 
+                # which this isn't. So, ...
+                # Just add value to the accumulator
+                achan_accumulation_table[achan_number] = result + \
+                    achan_accumulation_table[achan_number]
+                achan_number += 1
+                # Right now, only interested in index 1 
+                # TODO: change so we can use indexes 2 & 3
+                if slist_pointer == 1:
+                    # End of a decimation loop. So, amps =
+                    # value / decimation_factor to the output string
+                    amps = achan_accumulation_table[achan_number-1] * \
+                        10 / 32768 / decimation
+                    # output_string = output_string + "{: 3.3f}, "\
+                    #     .format(achan_accumulation_table[achan_number-1] * \
+                    #         10 / 32768 / decimation)
+
+            elif (dec_count != 1) and (slist_pointer == 0):
+                # Decimation loop NOT finished and first slist position
+                # Not the end of a decimation loop, but this is the first 
+                # position in slist. So, ...
+                # Just strip two LSBs, preserving sign...
+                result = result >> 2
+                result = result << 2
+                # ...and add the value to the accumulator
+                achan_accumulation_table[achan_number] = result + \
+                    achan_accumulation_table[achan_number]
+                achan_number += 1
+            else:
+                # Decimation loop NOT finished and NOT first slist position
+                # Nothing to do except add the value to the accumlator
+                achan_accumulation_table[achan_number] = \
+                    result + achan_accumulation_table[achan_number]
+                achan_number += 1
+
+            # Get the next position in slist
+            slist_pointer += 1
+
+            if (slist_pointer + 1) > (len(slist)):
+                # End of a pass through slist items
+                if dec_count == 1:
+                    # Get here if decimation loop has finished
+                    dec_count = decimation
+                    # Reset analog channel accumulators to zero
+                    achan_accumulation_table = [0] * \
+                        len(achan_accumulation_table)
+                    # Append digital inputs to output string
+                    # output_string = output_string + "{: 3d}, ".format(dig_in)
+                    # print(output_string.rstrip(", ") + "          ", end="\r")
+                    # output_string = ""
+                else:
+                    dec_count -= 1             
+                slist_pointer = 0
+                achan_number = 0
+
+    # Update widgets
+    lbl_voltage['text'] = "{0:.2f} V".format(volts)
+    lbl_current['text'] = "{0:.2f} V".format(amps)
+
+    job_window.after(5, update_levels) # Repeat after 5 ms pause
 
 #
 # flash_beacon
 #
-def flash_beacon():
+def update_flag_beacon():
     """Enable or disable the flashing beacon."""
     global job_window # Connect to the global variable
     if flag:
         change_color()
     else:
         lbl_flags_beacon.config(bg="white") # If no flag, make bg white
-    job_window.after(200, flash_beacon)         # Run every 200 ms
-
-#
-# change_color
-#
-def change_color():
-    """Change the color of the flags beacon box."""
-    current_color = lbl_flags_beacon.cget("background")
-    if current_color == "red":
-        next_color = "white"  
-    else:
-        next_color = "red"
-    lbl_flags_beacon.config(background=next_color)
+    job_window.after(200, update_flag_beacon)         # Run every 200 ms
 
 # 
 # update_flags_details
@@ -247,6 +348,8 @@ def update_com_ports():
     except:
         job_window.after(1000, update_com_ports)    
 
+
+# ============= Helper functions
 #
 # hook_com_port
 # 
@@ -260,6 +363,94 @@ def hook_com_port(idx):
     ser.port = com_port
     ser.baudrate = '115200'
     ser.open()
+
+#
+# send_cmd
+#
+def send_cmd(command):
+    """Sends a passed command string after appending <cr>"""
+    ser.write((command+'\r').encode())
+    # TODO: remove the following code(?)
+    # time.sleep(.1)
+    # if not(acquiring):
+    #     # Echo commands if not acquiring
+    #     while True:
+    #         if(ser.inWaiting() > 0):
+    #             while True:
+    #                 try:
+    #                     s = ser.readline().decode()
+    #                     s = s.strip('\n')
+    #                     s = s.strip('\r')
+    #                     s = s.strip(chr(0))
+    #                     break
+    #                 except:
+    #                     continue
+    #             if s != "":
+    #                 print (s)
+    #                 break
+
+#
+# config_scn_lst
+# 
+def config_scn_lst(): 
+    """Configure the instrument's scan list.
+    Scan list position must start with 0 and increment sequentially."""
+    global achan_accumulation_table # Connect with the global variable
+
+    position = 0
+    for item in slist:
+        send_cmd("slist "+ str(position ) + " " + str(item))
+        # Add the channel to the logical list.
+        achan_accumulation_table.append(0)
+        position += 1
+
+# 
+# Config_DATAQ
+#
+def config_DATAQ():
+    """Configure the DATAQ prior to collecting readings."""
+    # Connect to the global variables
+    global slist_pointer
+    global achan_number
+
+    # Stop in case DI-1100 is already scanning
+    send_cmd("stop")
+    # Define binary output mode
+    send_cmd("encode 0")
+    # Keep the packet size small for responsiveness
+    send_cmd("ps 0")
+    # Configure the instrument's scan list
+    config_scn_lst()
+
+    # Define sample rate = 1 Hz, where decimation_factor = 1000:
+    # 60,000,000/(srate) = 60,000,000 / 60000 / decimation_factor = 1 Hz
+    send_cmd("srate 60000")
+
+    # This is the slist position pointer. Ranges from 0 (first position)
+    # to len(slist)
+    slist_pointer = 0
+    # Init the logical channel number for enabled analog channels
+    achan_number = 0
+
+#
+# change_color
+#
+def change_color():
+    """Change the color of the flags beacon box."""
+    current_color = lbl_flags_beacon.cget("background")
+    if current_color == "red":
+        next_color = "white"  
+    else:
+        next_color = "red"
+    lbl_flags_beacon.config(background=next_color)
+
+#
+# toggle_flag
+#
+def toggle_flag():
+    """Toggles the flag for testing purposes."""
+    global flag # Connect with the global variable
+    flag = not flag
 
 
 # ============= Event handlers
@@ -279,7 +470,43 @@ def ask_close():
     if messagebox.askokcancel(
         message="Are you sure you want to close the window?", 
         icon='warning', title="Please confirm."):
+        # Stop serial read and close port
+        send_cmd("stop") # TODO: fix: throws error if DATAQ unplugged
+        ser.flushInput()
+        ser.close()
+        # Close the job window and system exit
         job_window.destroy()
+        SystemExit
+
+#
+# start_collection
+#
+def start_collection():
+    """Start collecting data from the DATAQ."""
+    global acquiring # Connect to the global variable
+
+    config_DATAQ()
+    acquiring = True
+    send_cmd("start") # TODO: fix: throws error if DATAQ unplugged
+    job_window.after(5, update_levels)   # 5 ms between collection loops
+
+#
+# stop_collection
+#
+def stop_collection():
+    """Stop collecting data from the DATAQ."""
+    global acquiring # Connect to the global variables
+    global lbl_voltage
+    global lbl_current
+
+    send_cmd("stop") # TODO: fix: throws error if DATAQ unplugged
+    time.sleep(1)
+    ser.flushInput() 
+    acquiring = False
+
+    # Update widgets (levels at 0 when not acquiring)
+    lbl_voltage['text'] = "{0:.2f} V".format(0)
+    lbl_current['text'] = "{0:.2f} V".format(0)
 
 #
 # retry_settings
@@ -315,6 +542,8 @@ def setup_job_window():
 
     # Widgets
     global lbl_settings_details # Settings
+    global lbl_voltage          # Levels
+    global lbl_current
     global lbl_flags_beacon     # Flags
     global flags_details
     global lbx_flags_details
@@ -431,7 +660,7 @@ def setup_job_window():
         relief=tk.GROOVE, 
         borderwidth=2, 
         bg="#c9c9c9",
-    )
+        command=start_collection)
     btn_stop = tk.Button(
         frm_levels,
         text="Stop",
@@ -439,7 +668,7 @@ def setup_job_window():
         relief=tk.GROOVE, 
         borderwidth=2, 
         bg="#c9c9c9",
-    )
+        command=stop_collection)
     # Pack widgets
     lbl_levels_header.pack(side=tk.LEFT)
     btn_stop.pack(side=tk.RIGHT)
@@ -449,7 +678,7 @@ def setup_job_window():
     # Create widgets
     lbl_voltage = tk.Label(
         frm_levels_details, 
-        text=f"{volts} V", 
+        text="{0:.2f} V".format(volts), 
         width=16, height=2, 
         bg="white", 
         font=("Arial", 25), 
@@ -457,7 +686,7 @@ def setup_job_window():
         borderwidth=5)
     lbl_current = tk.Label(
         frm_levels_details, 
-        text=f"{amps} A", 
+        text="{0:.2f} A".format(amps), 
         width=16, 
         height=2, 
         bg="white", 
@@ -592,6 +821,9 @@ def get_settings():
         # Read DAQ
         global hooked_ports
         global hooked_port
+        global dec_count
+
+        ser.close() # Close the serial port if it is already open
 
         # Extract settings -----------------------------
         # Input validation - COM port selection
@@ -628,6 +860,9 @@ def get_settings():
         # Convert tk.StringVar --> float
         shunt_resistor = float(shunt_resistor)
         flag_trigger = float(flag_trigger)
+
+        # update dec_count with user input for decimation
+        dec_count = decimation
 
         # Update job settings
         job_settings["COM Port"] = com_port
@@ -823,271 +1058,7 @@ if __name__ == '__main__':
     setup_job_window()
     get_settings()
     pgr_status_bar.start(10) # DEBUG
-    job_window.after(200, flash_beacon)
+    job_window.after(200, update_flag_beacon)
     job_window.after(1000, update_flags_details)
     job_window.after(1000, update_com_ports)
     job_window.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ----------------------------------------------------------------------------
-# import serial
-# import serial.tools.list_ports
-# import keyboard
-# import time
-
-# """ 
-# Example slist for model DI-1100
-# 0x0000 = Analog channel 0, ±10 V range
-# 0x0001 = Analog channel 1, ±10 V range
-# 0x0002 = Analog channel 2, ±10 V range
-# 0x0003 = Analog channel 3, ±10 V range
-# """
-# slist = [0x0000,0x0001,0x0002,0x0003]
-
-# ser=serial.Serial()
-
-# """
-# Since model DI-1100 cannot scan slower that 915 Hz at the protocol level, 
-# and that rate or higher is not practical for this program, define a decimation 
-# factor to slow scan rate to a practical level. It defines the number of analog readings to average
-# before displaying them. By design, digital input values display instantaneously
-# without averaging at the same rate as decimated analog values.
-# Averaging n values on each analog channel is more difficult than simply using
-# every nth value, but is recommended since it reduces noise by a factor of n^0.5 
-# 'decimation_factor' must be an integer value greater than zero. 
-# 'decimation_factor' = 1 disables decimation and attemps to output all values.
-# """
-# # Define a decimation factor variable
-# decimation_factor = 1000
-
-# # Contains accumulated values for each analog channel used for the average calculation
-# achan_accumulation_table = list(())
-
-# # Define flag to indicate if acquiring is active 
-# acquiring = False
-
-
-# # ============================================================================
-# # discovery
-# # ============================================================================
-# def discovery():
-#     """ Discover DATAQ Instruments devices and models.  Note that if multiple devices are connected, only the 
-#     device discovered first is used. We leave it to you to ensure that it's a DI-1100."""
-#     # Get a list of active com ports to scan for possible DATAQ Instruments devices
-#     available_ports = list(serial.tools.list_ports.comports())
-#     # Will eventually hold the com port of the detected device, if any
-#     com_port = "" 
-#     found_DAQs = []
-#     for port in available_ports:
-#         # Do we have a DATAQ Instruments device?
-#         if ("VID:PID=0683" in port.hwid):
-#             # Yes!  Dectect and assign the hooked com port
-#             found_DAQs.append(port)
-#             # com_port = port.device
-#             # break
-
-#     i = 0
-#     for DAQ in found_DAQs:
-#         """List found DAQs"""
-#         i += 1
-#         print(f"{i}. {DAQ}")
-        
-#     # Select the desired port
-#     dev = int(input("Select device: ")) - 1
-#     # print(found_DAQs[dev][0]) # DEBUG
-#     com_port = found_DAQs[dev].device
-
-#     if com_port:
-#         print("Found a DATAQ Instruments device on",com_port)
-#         # print(found_DAQs[dev].hwid)
-#         # print(found_DAQs[dev].pid)
-#         found_DAQs[dev].pid += dev
-#         ser.timeout = 0
-#         ser.port = com_port
-#         ser.baudrate = '115200'
-#         ser.open()
-#         return(True)
-#     else:
-#         # Get here if no DATAQ Instruments devices are detected
-#         print("Please connect a DATAQ Instruments device")
-#         input("Press ENTER to try again...")
-#         return(False)
-
-
-# # ============================================================================
-# # send_cmd
-# # ============================================================================
-# def send_cmd(command):
-#     """Sends a passed command string after appending <cr>"""
-#     ser.write((command+'\r').encode())
-#     time.sleep(.1)
-#     if not(acquiring):
-#         # Echo commands if not acquiring
-#         while True:
-#             if(ser.inWaiting() > 0):
-#                 while True:
-#                     try:
-#                         s = ser.readline().decode()
-#                         s = s.strip('\n')
-#                         s = s.strip('\r')
-#                         s = s.strip(chr(0))
-#                         break
-#                     except:
-#                         continue
-#                 if s != "":
-#                     print (s)
-#                     break
-
-
-# # ============================================================================
-# # config_scn_lst
-# # ============================================================================
-# def config_scn_lst():    # Scan list position must start with 0 and increment sequentially
-#     """Configure the instrument's scan list"""
-#     position = 0
-#     for item in slist:
-#         send_cmd("slist "+ str(position ) + " " + str(item))
-#         # Add the channel to the logical list.
-#         achan_accumulation_table.append(0)
-#         position += 1
-
-
-# # ----------------------------------------------------------------------------
-# # Setup hooked DATAQ unit prior to collecting readings
-# # ----------------------------------------------------------------------------
-# while discovery() == False:
-#     discovery()
-# # Stop in case DI-1100 is already scanning
-# send_cmd("stop")
-# # Define binary output mode
-# send_cmd("encode 0")
-# # Keep the packet size small for responsiveness
-# send_cmd("ps 0")
-# # Configure the instrument's scan list
-# config_scn_lst()
-
-# # Define sample rate = 1 Hz, where decimation_factor = 1000:
-# # 60,000,000/(srate) = 60,000,000 / 60000 / decimation_factor = 1 Hz
-# send_cmd("srate 60000")
-# print("")
-# print("Ready to acquire...")
-# print ("")
-# print("Press <g> to go, <s> to stop, and <q> to quit:")
-
-# # This is the slist position pointer. Ranges from 0 (first position)
-# # to len(slist)
-# slist_pointer = 0
-
-# # Init a decimation counter:
-# dec_count = decimation_factor
-
-# # Init the logical channel number for enabled analog channels
-# achan_number = 0
-
-# # This is the constructed output string
-# output_string = ""
-
-
-# # ----------------------------------------------------------------------------
-# # This is the main program loop, broken only by typing a command key as 
-# #   defined
-# # ----------------------------------------------------------------------------
-# while True:
-#     # If key 'G' start scanning
-#     if keyboard.is_pressed('g' or  'G'):
-#          keyboard.read_key()
-#          acquiring = True
-#          send_cmd("start")
-#     # If key 'S' stop scanning
-#     if keyboard.is_pressed('s' or 'S'):
-#          keyboard.read_key()
-#          send_cmd("stop")
-#          time.sleep(1)
-#          ser.flushInput()
-#          print ("")
-#          print ("stopped")
-#          acquiring = False
-#     # If key 'Q' exit 
-#     if keyboard.is_pressed('q' or 'Q'):
-#          keyboard.read_key()
-#          send_cmd("stop")
-#          ser.flushInput()
-#          break
-#     while (ser.inWaiting() > (2 * len(slist))):
-#          for i in range(len(slist)):
-#             # Always two bytes per sample...read them
-#             bytes = ser.read(2)
-#             # Only analog channels for a DI-1100, with dig_in states appearing in the two LSBs of ONLY the first slist position
-#             result = int.from_bytes(bytes,byteorder='little', signed=True)
-
-#             # Since digital input states are embedded into the analog data stream there are four possibilities:
-#             if (dec_count == 1) and (slist_pointer == 0):
-#                 # Decimation loop finished and first slist position
-#                 # Two LSBs carry information only for first slist posiiton. So, ...
-#                 # Preserve lower two bits representing digital input states
-#                 dig_in = result & 0x3
-#                 # Strip two LSBs from value to be added to the analog channel accumulation, preserving sign
-#                 result = result >> 2
-#                 result = result << 2
-#                 # Add the value to the accumulator
-#                 achan_accumulation_table[achan_number] = result + achan_accumulation_table[achan_number]
-#                 achan_number += 1
-#                 # End of a decimation loop. So, append accumulator value / decimation_factor  to the output string
-#                 output_string = output_string + "{: 3.3f}, ".format(achan_accumulation_table[achan_number-1] * 10 / 32768 / decimation_factor)
-
-#             elif (dec_count == 1) and (slist_pointer != 0):
-#                 # Decimation loop finished and NOT the first slist position
-#                 # Two LSBs carry information only for first slist posiiton, which this isn't. So, ...
-#                 # Just add value to the accumulator
-#                 achan_accumulation_table[achan_number] = result + achan_accumulation_table[achan_number]
-#                 achan_number += 1
-#                 # End of a decimation loop. So, append accumulator value / decimation_factor  to the output string
-#                 output_string = output_string + "{: 3.3f}, ".format(achan_accumulation_table[achan_number-1] * 10 / 32768 / decimation_factor)
-
-#             elif (dec_count != 1) and (slist_pointer == 0):
-#                 # Decimation loop NOT finished and first slist position
-#                 # Not the end of a decimation loop, but this is the first position in slist. So, ...
-#                 # Just strip two LSBs, preserving sign...
-#                 result = result >> 2
-#                 result = result << 2
-#                 # ...and add the value to the accumulator
-#                 achan_accumulation_table[achan_number] = result + achan_accumulation_table[achan_number]
-#                 achan_number += 1
-#             else:
-#                 # Decimation loop NOT finished and NOT first slist position
-#                 # Nothing to do except add the value to the accumlator
-#                 achan_accumulation_table[achan_number] = result + achan_accumulation_table[achan_number]
-#                 achan_number += 1
-
-#             # Get the next position in slist
-#             slist_pointer += 1
-
-#             if (slist_pointer + 1) > (len(slist)):
-#                 # End of a pass through slist items
-#                 if dec_count == 1:
-#                     # Get here if decimation loop has finished
-#                     dec_count = decimation_factor
-#                     # Reset analog channel accumulators to zero
-#                     achan_accumulation_table = [0] * len(achan_accumulation_table)
-#                     # Append digital inputs to output string
-#                     output_string = output_string + "{: 3d}, ".format(dig_in)
-#                     print(output_string.rstrip(", ") + "           ", end="\r") 
-#                     output_string = ""
-#                 else:
-#                     dec_count -= 1             
-#                 slist_pointer = 0
-#                 achan_number = 0
-# ser.close()
-# SystemExit
