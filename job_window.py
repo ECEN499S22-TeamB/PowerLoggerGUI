@@ -77,9 +77,9 @@ settings_window = None
 job_settings = {
     "Job Number": job_number,
     "COM Port": "",
-    "Shunt Resistor": None, # Ohms
-    "Decimation": None,     # samples/update
-    "Flag Trigger": None    # A
+    "Shunt Resistor": "",   # Ohms
+    "Decimation": 0,        # samples/update
+    "Flag Trigger": ""      # A
 }
 
 com_port = job_settings["COM Port"]
@@ -98,9 +98,8 @@ settings_details = f"Job Number: \n" +\
     f"Flag Trigger: "
 
 # COM ports
-lbx_com_port = None     # Make this widget global
-com_ports_list = []     # Start with empty list for thee listbox
-active_com_ports = None # Make StringVar type 
+cmb_com_port = None     # Make this widget global
+active_com_ports = []   # Make empty list to hold active COM ports
 
 # Shunt Resistor
 resistor_values = [0.01, 0.1, 1, 5, 10]
@@ -318,32 +317,30 @@ def update_flags_details(i=0):
 #
 # update_com_ports
 #
-def update_com_ports():
+def update_com_ports(override=0):
     """Update the active COM ports list (accessed by settings window)."""
     # Connect to the global variables
-    global lbx_com_port
-    global com_ports_list
+    global cmb_com_port
     global hooked_ports
     global active_com_ports
+    global hooked_port
 
     # Is the settings_window running?
     try:
-        if settings_window.state() == "normal":
+        if settings_window.state() == "normal" or override == 1:
             # If so, update the widget
             # Get a list of active com ports to scan for possible DATAQ Instruments devices
+            active_com_ports = []   # Reset list
+            hooked_ports = {}       # Reset dict
+            hooked_port = None      # Reset port
             available_ports = list(serial.tools.list_ports.comports())
-            com_ports_list = []
             for port in available_ports:
                 # Do we have a DATAQ Instruments device?
                 if ("VID:PID=0683" in port.hwid):
                     # Yes!  Dectect and assign the hooked com port
                     hooked_ports[port.device] = port
-                    com_ports_list.append(port.device)
-            if not active_com_ports:
-                active_com_ports = tk.StringVar(value=com_ports_list)
-            else:
-                active_com_ports.set(com_ports_list)
-            lbx_com_port['listvariable'] = active_com_ports # Update the widget
+                    active_com_ports.append(port.device)
+            cmb_com_port['values'] = active_com_ports # Update the widget
             job_window.after(1000, update_com_ports)
     except:
         job_window.after(1000, update_com_ports)    
@@ -351,18 +348,40 @@ def update_com_ports():
 
 # ============= Helper functions
 #
-# hook_com_port
+# close_all_ports
+#
+def close_all_ports():
+    """Identify and close all hooked_ports."""
+    global hooked_port  # Connect to global variables
+    global com_port     #
+    global ser          #
+
+    update_com_ports(1)
+    for hooked_port in hooked_ports.values():
+        com_port = hooked_port.device
+        open_com_port(int(com_port[3]))
+        send_cmd("stop")
+        ser.flushInput()
+        ser.close()
+        ser=serial.Serial()
+
+#
+# open_com_port
 # 
-def hook_com_port(idx):
+def open_com_port(unique_val):
     """Hook the user-selected COM port to read from it.""" 
-    global hooked_port # Connect to the global variable
+    global hooked_port # Connect to the global variables
     global ser         # 
 
-    hooked_port.pid += idx # Prevent always reading from first connected device
-    ser.timeout = 0
+    # Prevent always reading from first connected device
+    hooked_port.pid += unique_val
+
     ser.port = com_port
+    ser.timeout = 0
     ser.baudrate = '115200'
-    ser.open()
+    # Open only if not already open
+    if not ser.isOpen():
+        ser.open()
 
 #
 # send_cmd
@@ -370,25 +389,7 @@ def hook_com_port(idx):
 def send_cmd(command):
     """Sends a passed command string after appending <cr>"""
     ser.write((command+'\r').encode())
-    # TODO: remove the following code(?)
-    # time.sleep(.1)
-    # if not(acquiring):
-    #     # Echo commands if not acquiring
-    #     while True:
-    #         if(ser.inWaiting() > 0):
-    #             while True:
-    #                 try:
-    #                     s = ser.readline().decode()
-    #                     s = s.strip('\n')
-    #                     s = s.strip('\r')
-    #                     s = s.strip(chr(0))
-    #                     break
-    #                 except:
-    #                     continue
-    #             if s != "":
-    #                 print (s)
-    #                 break
-
+        
 #
 # config_scn_lst
 # 
@@ -470,10 +471,8 @@ def ask_close():
     if messagebox.askokcancel(
         message="Are you sure you want to close the window?", 
         icon='warning', title="Please confirm."):
-        # Stop serial read and close port
-        send_cmd("stop") # TODO: fix: throws error if DATAQ unplugged
-        ser.flushInput()
-        ser.close()
+        # Make sure we close all hooked ports
+        close_all_ports()
         # Close the job window and system exit
         job_window.destroy()
         SystemExit
@@ -485,10 +484,38 @@ def start_collection():
     """Start collecting data from the DATAQ."""
     global acquiring # Connect to the global variable
 
-    config_DATAQ()
-    acquiring = True
-    send_cmd("start") # TODO: fix: throws error if DATAQ unplugged
-    job_window.after(5, update_levels)   # 5 ms between collection loops
+    # COM port error handling
+    try:
+        # Before starting data collection, make sure the COM port is still hooked.
+        # If not, open settings window to force user to select a valid COM port.
+        if hooked_ports[com_port] in list(serial.tools.list_ports.comports()):
+            config_DATAQ()
+            acquiring = True
+            send_cmd("start")
+            pgr_status_bar.start(10)           # Start the progress bar
+            job_window.after(5, update_levels) # 5 ms between collection loops
+        else: 
+            message="The DATAQ has been disconnected.\n" + \
+                "Please reconnect and try again."
+            messagebox.showerror(
+                title="Error: Device Disconnected", 
+                message=message)
+            get_settings()
+    except:
+        # A bug can be triggered a specific sequence of events involving
+        # disconnecting/reconnecting DATAQs and starting the data collection
+        # process. 
+        # UPDATE: This is caused by uplugging the DATAQ and plugging it back
+        # in, then pressing the "Start" button. It seems like forcing the 
+        # user back through the settings window is a decent fix.
+        # TODO: find a better fix
+        message="Looks like something went wrong\nand this device is " + \
+            "no longer available.\n\nPlease reset your connections " + \
+            "\nand try again."
+        messagebox.showerror(
+            title="Error: Device Setup Malfunction",
+            message=message)
+        get_settings()
 
 #
 # stop_collection
@@ -499,10 +526,12 @@ def stop_collection():
     global lbl_voltage
     global lbl_current
 
-    send_cmd("stop") # TODO: fix: throws error if DATAQ unplugged
-    time.sleep(1)
-    ser.flushInput() 
-    acquiring = False
+    if acquiring:
+        send_cmd("stop") # TODO: fix: throws error if DATAQ unplugged
+        pgr_status_bar.stop() # Stop the progress bar
+        time.sleep(1)
+        ser.flushInput() 
+        acquiring = False
 
     # Update widgets (levels at 0 when not acquiring)
     lbl_voltage['text'] = "{0:.2f} V".format(0)
@@ -796,16 +825,13 @@ def get_settings():
     global job_window
     global settings_window
     # Widgets
-    global lbx_com_port
-    # Settings
-    global com_port
-    global shunt_resistor
-    global decimation
-    global flag_trigger
-    # Convert to tk var types
-    shunt_resistor = tk.StringVar(value="")
-    decimation = tk.IntVar(value=0)
-    flag_trigger = tk.StringVar(value="")
+    global cmb_com_port
+    
+    # Init as tk var types (create local copy)
+    com_port_local = tk.StringVar(value=com_port)
+    shunt_resistor_local = tk.StringVar(value=shunt_resistor)
+    decimation_local = tk.IntVar(value=decimation)
+    flag_trigger_local = tk.StringVar(value=flag_trigger)
 
     # Helper functions ---------------------------------
     def close_okay():
@@ -818,35 +844,38 @@ def get_settings():
         global shunt_resistor 
         global decimation
         global flag_trigger
-        # Read DAQ
+        # Read DATAQ
         global hooked_ports
         global hooked_port
         global dec_count
+        global ser
 
-        ser.close() # Close the serial port if it is already open
+        # Some setup before accepting new settings -----
+        # Make sure all COM ports are closed
+        close_all_ports()
+
+        # Connect globals to locals
+        com_port = com_port_local
+        shunt_resistor = shunt_resistor_local
+        decimation = decimation_local
+        flag_trigger = flag_trigger_local
 
         # Extract settings -----------------------------
-        # Input validation - COM port selection
-        # TODO: fortify validation?
-        # TODO: avoid clearing settings window on reset, 
-        #   or refill valid fields
-        idxs = lbx_com_port.curselection()
-        if len(idxs)!=1:
-            retry_settings("Please select a valid COM port.")
-            return
+        # TODO: fortify validation(?)
+
+        # Get index value of selected COM port
+        com_idx = cmb_com_port.current()
 
         # Extract values from tk vars
-        # Setup COM port
-        idx = lbx_com_port.curselection()
-        com_port = lbx_com_port.get(idx)
-        hooked_port = hooked_ports[com_port]
-        hook_com_port(idx[0]) # Hook the COM port to read from it
-        # Remaining tk vars
+        com_port = com_port.get()
         shunt_resistor = shunt_resistor.get()
         decimation = decimation.get()
         flag_trigger = flag_trigger.get()
 
-        # Input validation - remaining settings
+        # Input validation
+        if com_port == "" or com_port not in active_com_ports:
+            retry_settings("Please select a valid COM port.")
+            return
         if shunt_resistor == "":
             retry_settings("Please enter a valid shunt resistor value.")
             return
@@ -856,6 +885,10 @@ def get_settings():
         if flag_trigger == "":
             retry_settings("Please enter a valid flag trigger.")
             return
+
+        # Setup the COM port
+        hooked_port = hooked_ports[com_port]
+        open_com_port(com_idx) # Hook the COM port to read from it
 
         # Convert tk.StringVar --> float
         shunt_resistor = float(shunt_resistor)
@@ -934,17 +967,14 @@ def get_settings():
         text="COM Port",
         anchor="w",
         width=25)
-    lbx_com_port = tk.Listbox(
+    cmb_com_port = ttk.Combobox(
         frm_com_port,
-        listvariable=active_com_ports,
-        selectmode="browse",
-        width=15,
-        height=1,
-        relief=tk.GROOVE,
-        borderwidth=2)
+        textvariable=com_port_local,
+        values=active_com_ports,
+        width=13)
     # Pack widgets
     lbl_com_port.pack(side=tk.LEFT)
-    lbx_com_port.pack(side=tk.LEFT)
+    cmb_com_port.pack(side=tk.LEFT)
 
     # Setup shunt resistor frame -----------------------
     # Create widgets
@@ -955,7 +985,7 @@ def get_settings():
         width=25)
     cmb_shunt_resistor = ttk.Combobox(
         frm_shunt_resistor,
-        textvariable=shunt_resistor,
+        textvariable=shunt_resistor_local,
         values=resistor_values,
         width=13)
     lbl_resistor_units = tk.Label(
@@ -977,7 +1007,7 @@ def get_settings():
         width=25)
     ent_decimation = tk.Entry(
         frm_decimation,
-        textvariable=decimation,
+        textvariable=decimation_local,
         width=15,
         relief=tk.GROOVE,
         borderwidth=2)
@@ -1003,7 +1033,7 @@ def get_settings():
         text="\u00B1")
     ent_flag_trigger = tk.Entry(
         frm_flag_trigger,
-        textvariable=flag_trigger,
+        textvariable=flag_trigger_local,
         width=15,
         relief=tk.GROOVE,
         borderwidth=2)
@@ -1057,7 +1087,6 @@ def get_settings():
 if __name__ == '__main__':
     setup_job_window()
     get_settings()
-    pgr_status_bar.start(10) # DEBUG
     job_window.after(200, update_flag_beacon)
     job_window.after(1000, update_flags_details)
     job_window.after(1000, update_com_ports)
