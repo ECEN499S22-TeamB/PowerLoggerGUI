@@ -105,7 +105,7 @@ active_com_ports = []   # Make empty list to hold active COM ports
 resistor_values = [0.01, 0.1, 1, 5, 10]
 
 # Initial setup flag
-initial_setup = 0 # When set to 1, initial setup completed
+initial_setup_done = False # When set to True, initial setup completed
 
 # Device levels ----------------------------------------
 lbl_voltage = None
@@ -123,8 +123,6 @@ flags[1] ----> Priority: 1, ORANGE, levels trigger (levels out of range)
 flags[2] ----> Priotiry: 2, YELLOW, levels warning (levels near trigger)
 """
 lbx_flags_details = None    # Make this widget global
-flags_list = []             # Start with empty list for the listbox
-flags_details = None        # Make StringVar type
 prev_sel_flags = None       # Used for enhanced listbox deselection
 lbl_flags_beacon = None     # Make this widget global
 flags = [False]*3           # 3 flags
@@ -134,15 +132,13 @@ flags_give_msg = [True]*len(flags) # Display the msg for each flag?
 
 # Readings history
 lbx_history_details = None  # Make this widget global
-history_list = []           # Start with empty list for the listbox
-history_details = None      # Make StringVar type
 prev_sel_history = None     # Used for enhanced listbox deselection
 # Output string
 history_output_str = ""
 
 # Status
-status = "<placeholder>"
 pgr_status_bar = None
+lbl_status = None
 
 # Read DAQ ---------------------------------------------
 """ 
@@ -519,8 +515,6 @@ def update_flags_details():
 
     # Connect to the global variables ----------------
     global lbx_flags_details
-    global flags_list
-    global flags_details
     global flag_output_str
 
     # Return if there are no new messages to display
@@ -531,7 +525,7 @@ def update_flags_details():
     flag_output_str = "" # Clear the output string
     # Add time
     now = datetime.datetime.now()
-    dt_string = now.strftime("%m/%d/%Y %H:%M:%S") # mm/dd/YY H:M:S
+    dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
     flag_output_str += dt_string
     flag_output_str += "        " # Add spaces after time info
     # Flag info
@@ -548,12 +542,14 @@ def update_flags_details():
     flag_output_str += flg_string
 
     # Update the listbox
-    flags_list.append(flag_output_str)
-    if not flags_details:
-        flags_details = tk.StringVar(value=flags_list)
+    lbx_flags_details.insert(tk.END, flag_output_str)
+    # Add color formatting
+    if flags[1]:
+        lbx_flags_details.itemconfig(tk.END, fg="orange")
+    elif flags[2]:
+        lbx_flags_details.itemconfig(tk.END, fg="yellow")
     else:
-        flags_details.set(flags_list)
-    lbx_flags_details['listvariable'] = flags_details # Update the widget
+        lbx_flags_details.itemconfig(tk.END, fg="green")
 
     # Decide how to focus the listbox
     # TODO: add a way to allow the user to either keep list static or
@@ -568,8 +564,6 @@ def update_readings_history():
     """Update the readings history detail view with the new readings."""
     # Connect to the global variables ------------------
     global lbx_history_details
-    global history_list
-    global history_details
     global history_output_str
 
     # Construct the output string -------------------------
@@ -577,7 +571,7 @@ def update_readings_history():
     history_output_str = "" # Clear the output string
     # Add time
     now = datetime.datetime.now()
-    dt_string = now.strftime("%m/%d/%Y %H:%M:%S") # mm/dd/YY H:M:S
+    dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
     history_output_str += dt_string
     history_output_str += "        " # Add spaces after time info
     # Add channel readings
@@ -591,12 +585,14 @@ def update_readings_history():
     history_output_str += lvls_string
 
     # Update the listbox
-    history_list.append(history_output_str)
-    if not history_details:
-        history_details = tk.StringVar(value=history_list)
+    lbx_history_details.insert(tk.END, history_output_str)
+    # Add color formatting
+    if flags[1]:
+        lbx_history_details.itemconfig(tk.END, fg="orange")
+    elif flags[2]:
+        lbx_history_details.itemconfig(tk.END, fg="yellow")
     else:
-        history_details.set(value=history_list)
-    lbx_history_details['listvariable'] = history_details # Update the widget
+        lbx_history_details.itemconfig(tk.END, fg="green")
 
     # Decide how to focus the listbox
     # TODO: add a way to allow the user to either keep list static or
@@ -645,7 +641,9 @@ def start_collection():
             send_cmd("start")
             pgr_status_bar.start(10)           # Start the progress bar
             job_window.after(5, update_levels) # 5 ms between collection loops
+            lbl_status["text"] = f"{com_port}: ACQUIRING..."
         else: 
+            lbl_status["text"] = f"ERROR: {com_port} DISCONNECTED"
             message="The DATAQ has been disconnected.\n" + \
                 "Please reconnect and try again."
             messagebox.showerror(
@@ -660,6 +658,7 @@ def start_collection():
         # in, then pressing the "Start" button. It seems like forcing the 
         # user back through the settings window is a decent fix.
         # TODO: find a better fix
+        lbl_status["text"] = f"ERROR: TROUBLE TALKING WITH {com_port}"
         message="Looks like something went wrong\nand this device is " + \
             "no longer available.\n\nPlease reset your connections " + \
             "\nand try again."
@@ -689,6 +688,7 @@ def stop_collection():
     lbl_current['text'] = "{0:.2f} V".format(0)
 
     clear_all_flags()
+    lbl_status["text"] = f"{com_port}: READY"
 
 #
 # retry_settings
@@ -765,13 +765,10 @@ def setup_job_window():
     global lbl_voltage          # Levels
     global lbl_current
     global lbl_flags_beacon     # Flags
-    global flags_details
     global lbx_flags_details
-    global history_details      # History
-    global lbx_history_details
+    global lbx_history_details  # History
     global pgr_status_bar       # Status
-    # Convert to tk var types
-    # TODO: add code here
+    global lbl_status
 
     # Create window ------------------------------------
     job_window = tk.Tk()
@@ -948,7 +945,6 @@ def setup_job_window():
     lbx_flags_details = tk.Listbox( 
         # TODO: replace Listbox with something else?
         frm_flags_details,
-        listvariable=flags_details,
         height=4,
         bg="white")
     # Pack widgets
@@ -967,7 +963,6 @@ def setup_job_window():
     # Create widgets
     lbx_history_details = tk.Listbox(
         frm_history_details,
-        listvariable=history_details,
         bg="white",
         height=21
     )
@@ -978,7 +973,7 @@ def setup_job_window():
     # Create widgets
     lbl_status = tk.Label(
         frm_status,
-        text=status)
+        text="INITIAL SETUP")
     # Create and configure the ttk Progressbar widget
     style.configure('white.Horizontal.TProgressbar', background="green")
     pgr_status_bar = ttk.Progressbar(
@@ -1018,6 +1013,9 @@ def get_settings():
     global settings_window
     # Widgets
     global cmb_com_port
+
+    if initial_setup_done:
+        lbl_status["text"] = "SETUP"
     
     # Init as tk var types (create local copy)
     com_port_local = tk.StringVar(value=com_port)
@@ -1041,6 +1039,7 @@ def get_settings():
         global hooked_port
         global dec_count
         global ser
+        global initial_setup_done
 
         # Some setup before accepting new settings -----
         # End all processes related to active data collection
@@ -1103,7 +1102,8 @@ def get_settings():
             f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
         lbl_settings_details['text'] = settings_details
         
-        initial_setup = 1 # Completed at least one setup
+        initial_setup_done = True # Completed at least one setup
+        lbl_status['text'] = f"{com_port}: READY"
 
         # Close settings window ------------------------
         settings_window.destroy()
