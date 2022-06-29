@@ -53,6 +53,9 @@ import serial
 import serial.tools.list_ports
 
 
+
+
+
 # ============= Globals
 # Time & date
 today = datetime.date.today()
@@ -78,23 +81,25 @@ job_settings = {
     "COM Port": "",
     "Shunt Resistor": "",   # Ohms
     "Decimation": 0,        # samples/update
+    "Expected Current": "", # A
     "Flag Trigger": ""      # A
 }
 
 com_port = job_settings["COM Port"]
 shunt_resistor = job_settings["Shunt Resistor"]
 decimation = job_settings["Decimation"]
-amps_baseline = 10 # TODO: don't hardcode - include with other settings
+expected_amps = job_settings["Expected Current"]
 flag_trigger = job_settings["Flag Trigger"]
 
 # Widget
 lbl_settings_details = None
 
 # Starting output string
-settings_details = f"Job Number: \n" +\
-    f"COM Port: \n" +\
-    f"Shunt Resistor: \n" +\
-    f"Decimation Factor: \n" +\
+settings_details = f"Job Number: \n" + \
+    f"COM Port: \n" + \
+    f"Shunt Resistor: \n" + \
+    f"Decimation Factor: \n" + \
+    f"Expected Current: \n" + \
     f"Flag Trigger: "
 
 # COM ports
@@ -172,6 +177,9 @@ acquiring = False
 dec_count = None
 slist_pointer = 0
 achan_number = 0
+
+
+
 
 
 # ============= mainloop functions
@@ -354,8 +362,8 @@ def check_conditions():
     # TODO: add this functionality
 
     # Check device levels
-    lower_limit = amps_baseline - flag_trigger
-    upper_limit = amps_baseline + flag_trigger
+    lower_limit = expected_amps - flag_trigger
+    upper_limit = expected_amps + flag_trigger
     lower_warning = lower_limit + (0.25*flag_trigger) # 75% to trigger
     upper_warning = upper_limit - (0.25*flag_trigger) #
     # flag1
@@ -401,6 +409,9 @@ def update_flag_beacon():
     lbl_flags_beacon.config(background=next_color)
 
     job_window.after(200, update_flag_beacon)
+
+
+
 
 
 # ============= Helper functions
@@ -601,6 +612,9 @@ def update_readings_history():
     lbx_history_details.see("end") # Keep latest output in view
 
 
+
+
+
 # ============= Event handlers
 #
 # donothing
@@ -748,6 +762,9 @@ def clear_all_flags():
             flags_give_msg[idx] = True
     
     lbl_flags_beacon.config(background="white")
+
+
+
 
 
 # ============= Setup visuals
@@ -1007,22 +1024,6 @@ def setup_job_window():
 #
 def get_settings():
     """Setup the Job Settings GUI."""
-    # Connect to globals -------------------------------
-    # Windows
-    global job_window
-    global settings_window
-    # Widgets
-    global cmb_com_port
-
-    if initial_setup_done:
-        lbl_status["text"] = "SETUP"
-    
-    # Init as tk var types (create local copy)
-    com_port_local = tk.StringVar(value=com_port)
-    shunt_resistor_local = tk.StringVar(value=shunt_resistor)
-    decimation_local = tk.IntVar(value=decimation)
-    flag_trigger_local = tk.StringVar(value=flag_trigger)
-
     # Helper functions ---------------------------------
     def close_okay():
         """Extract user-selected settings and close the settings window."""
@@ -1033,6 +1034,7 @@ def get_settings():
         global com_port 
         global shunt_resistor 
         global decimation
+        global expected_amps
         global flag_trigger
         # Read DATAQ
         global hooked_ports
@@ -1049,6 +1051,7 @@ def get_settings():
         com_port = com_port_local
         shunt_resistor = shunt_resistor_local
         decimation = decimation_local
+        expected_amps = expected_amps_local
         flag_trigger = flag_trigger_local
 
         # Extract settings -----------------------------
@@ -1061,6 +1064,7 @@ def get_settings():
         com_port = com_port.get()
         shunt_resistor = shunt_resistor.get()
         decimation = decimation.get()
+        expected_amps = expected_amps.get()
         flag_trigger = flag_trigger.get()
 
         # Input validation
@@ -1073,6 +1077,9 @@ def get_settings():
         if decimation == 0:
             retry_settings("Please enter a valid decimation factor.")
             return
+        if expected_amps == 0:
+            retry_settings("Please enter a valid expected current.")
+            return
         if flag_trigger == "":
             retry_settings("Please enter a valid flag trigger.")
             return
@@ -1083,6 +1090,7 @@ def get_settings():
 
         # Convert tk.StringVar --> float
         shunt_resistor = float(shunt_resistor)
+        expected_amps = float(expected_amps)
         flag_trigger = float(flag_trigger)
 
         # update dec_count with user input for decimation
@@ -1092,13 +1100,16 @@ def get_settings():
         job_settings["COM Port"] = com_port
         job_settings["Shunt Resistor"] = shunt_resistor
         job_settings["Decimation"] = decimation
+        job_settings["Expected Current"] = expected_amps
         job_settings["Flag Trigger"] = flag_trigger
 
         # Update job settings widget -------------------
-        settings_details = f"Job number: \t\t{job_number}\n" +\
-            f"COM Port: \t\t{com_port}\n" +\
-            f"Shunt Resistor: \t\t{shunt_resistor} \u03A9\n" +\
-            f"Decimation Factor: \t{decimation} samples/update\n" +\
+        # TODO: make settings text blue(?)
+        settings_details = f"Job number: \t\t{job_number}\n" + \
+            f"COM Port: \t\t{com_port}\n" + \
+            f"Shunt Resistor: \t\t{shunt_resistor} \u03A9\n" + \
+            f"Decimation Factor: \t{decimation} samples/update\n" + \
+            f"Expected Current: \t{expected_amps} A\n" + \
             f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
         lbl_settings_details['text'] = settings_details
         
@@ -1107,6 +1118,23 @@ def get_settings():
 
         # Close settings window ------------------------
         settings_window.destroy()
+
+    # Connect to globals -------------------------------
+    # Windows
+    global job_window
+    global settings_window
+    # Widgets
+    global cmb_com_port
+
+    if initial_setup_done:
+        lbl_status["text"] = "SETUP"
+    
+    # Init as tk var types (create local copy)
+    com_port_local = tk.StringVar(value=com_port)
+    shunt_resistor_local = tk.StringVar(value=shunt_resistor)
+    decimation_local = tk.IntVar(value=decimation)
+    expected_amps_local = tk.StringVar(value=expected_amps)
+    flag_trigger_local = tk.StringVar(value=flag_trigger)
 
     # Open window (or don't) ---------------------------    
     try:
@@ -1122,7 +1150,7 @@ def get_settings():
     settings_window.title(
         f"Power Logger: Job Settings (RTS{yr} - J{job_number})")
     settings_window.lift(job_window)
-    settings_window.geometry('400x140-10+10')
+    settings_window.geometry('400x160-10+10')
     settings_window.resizable(False, False)
 
     # Create frames ------------------------------------
@@ -1142,6 +1170,10 @@ def get_settings():
         master=settings_window,
         relief=tk.GROOVE,
         borderwidth=2)
+    frm_expected_amps = tk.Frame(
+        master=settings_window,
+        relief=tk.GROOVE,
+        borderwidth=2) 
     frm_flag_trigger = tk.Frame(
         master=settings_window,
         relief=tk.GROOVE,
@@ -1153,7 +1185,6 @@ def get_settings():
         padx=5, pady=5) 
 
     # Setup com port frame -----------------------------
-    # TODO: prevent deselecting COM port when selecting shunt resistor
     # Create widgets
     lbl_com_port = tk.Label(
         frm_com_port,
@@ -1214,6 +1245,29 @@ def get_settings():
     ent_decimation.pack(side=tk.LEFT)
     lbl_decimation_units.pack(side=tk.LEFT)
 
+    # Setup expected amps frame -------------------------
+    # Create widgets
+    lbl_expected_amps = tk.Label(
+        frm_expected_amps,
+        text="Expected Current\t\t\t\u00B1",
+        anchor="w",
+        width=25)
+    ent_expected_amps = tk.Entry(
+        frm_expected_amps,
+        textvariable=expected_amps_local,
+        width=15,
+        relief=tk.GROOVE,
+        borderwidth=2)
+    lbl_expected_amps_units = tk.Label(
+        frm_expected_amps,
+        text="A",
+        anchor="w",
+        width=15)
+    # Pack widgets
+    lbl_expected_amps.pack(side=tk.LEFT)
+    ent_expected_amps.pack(side=tk.LEFT)
+    lbl_expected_amps_units.pack(side=tk.LEFT)
+
     # Setup flag trigger frame -------------------------
     # Create widgets
     lbl_flag_trigger = tk.Label(
@@ -1268,15 +1322,19 @@ def get_settings():
     btn_ok.grid(row=0, column=0, sticky="e")
     btn_cancel.grid(row=0, column=2, sticky="w")
 
-    # Pack frames in window
+    # Pack frames in window ----------------------------
     frm_com_port.pack(fill=tk.X)
     frm_shunt_resistor.pack(fill=tk.X)
     frm_decimation.pack(fill=tk.X)
+    frm_expected_amps.pack(fill=tk.X)
     frm_flag_trigger.pack(fill=tk.X)
     frm_okcancel.pack(fill=tk.BOTH)
 
 
-# # ============= Run setup and enter event loop
+
+
+
+# ============= Run setup and enter event loop
 if __name__ == '__main__':
     setup_job_window()
     get_settings()
