@@ -1,11 +1,15 @@
 import tkinter as tk
 import os
 import subprocess
+from tkinter import filedialog as fd
 
 # ============= Globals
 # Windows
 main_window = None
 job_num_window = None
+daq_list =[]
+daq_details = None
+lbl_output = None
 
 # File management
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -90,6 +94,14 @@ def create_job():
     btn_okay.grid(row=0, column=0, sticky='e')
     btn_cancel.grid(row=0, column=2, sticky='w')
 
+def load_project():
+    """Open a file for editing."""
+    filepath = fd.askopenfilename(
+        filetypes=[('Text Files', "*.txt"), ("All Files", "*.*")],
+    )
+
+
+
 
 def active_window():
         subprocess.Popen(
@@ -99,36 +111,57 @@ def active_window():
 
 
 def widget():
-
-    #testing
-    #daq_log = []
-    #daq = tk.StringVar(daq_log)
-    
-    y = 0
-    for i in range(0 , 100):
-        if i == 100:
-            #daq_log.append(f"Daq Data{y} logging...")
-            y += 1
-            i = 0
-
     # Create widgets
-    lbl_output = tk.Label(window, bg="white",)# text=f"daq")
+    global daq_details
+    global lbl_output
+
+    frm_output = tk.Frame(window, relief=tk.GROOVE, borderwidth=2)
+    lbl_output = tk.Listbox(frm_output, bg="white", listvariable=daq_details) 
     frm_buttons = tk.Frame(window, relief=tk.RAISED, bd=2)
     btn_open = tk.Button(frm_buttons, width= 12, height=3, text="New Project", command=create_job)
-    btn_save = tk.Button(frm_buttons, width= 12, height=3, text="Load Project",)
+    btn_save = tk.Button(frm_buttons, width= 12, height=3, text="Load Project", command= load_project)
     btn_active = tk.Button(frm_buttons, width= 12, height=3,  text="Active Window", command=active_window)
+    bar_output = tk.Scrollbar(lbl_output, orient=tk.VERTICAL)
+    bar_output.config(command=lbl_output.yview)
+    lbl_output.config(yscrollcommand = bar_output.set)
 
-    # Assign buttons to frame
     btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
     btn_save.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
     btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
+    lbl_output.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
+    bar_output.pack(side="right", fill="y")
 
-    # Setup window grid layout
     frm_buttons.grid(row=0, column=0, sticky="ns")
-    lbl_output.grid(row=0, column=1, sticky="nsew")
+    frm_output.grid(row=0, column=1, sticky="nsew")
 
-    #window.after(1000, widget)
+# TODO: Replace with real logging code
+# For Testing
+#-----------------------------------------------------------------------
+def log_history(i=0):
+    """Update the flags details listbox."""
+    global daq_list        # Connect to the global variables
+    global daq_details     #
+    global lbl_output #
 
+    # Update the listbox
+    daq_list.append(f"ERROR{i}\n") # DEBUG
+    i += 1 # DEBUG
+    if not daq_details:
+        daq_details = tk.StringVar(value=daq_list)
+    else:
+        daq_details.set(daq_list)
+    lbl_output['listvariable'] = daq_details # Update the widget
+
+    # Decide how to focus the listbox
+    lbl_output.see("end") # Keep latest output in view
+    # If user has made a selection, keep it visible
+    idxs = lbl_output.curselection()
+    if len(idxs)==1:
+            idx = lbl_output.curselection()
+            lbl_output.selection_set(idx)
+            lbl_output.see(idx)
+    window.after(1000, log_history, i)
+    #-----------------------------------------------------------------------
 
 
 def menu():
@@ -156,9 +189,9 @@ def donothing():
 
 def setup():
     window.title("Dashboard")
-    window.geometry('960x1080+0+0') 
-    window.columnconfigure(1, minsize=800, weight=1)
-    window.rowconfigure(0, minsize=800, weight=1)
+    window.geometry('960x750+0+0') 
+    window.columnconfigure(1, weight=1)
+    window.rowconfigure(0, weight=1)
     window.resizable(False, False) 
 
     menu()
@@ -168,4 +201,5 @@ if __name__ == '__main__':
     window = tk.Tk()
     setup()
     widget()
+    window.after(1000, log_history)
     window.mainloop()
