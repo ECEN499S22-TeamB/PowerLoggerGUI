@@ -100,9 +100,6 @@ def load_project():
         filetypes=[('Text Files', "*.txt"), ("All Files", "*.*")],
     )
 
-
-
-
 def active_window():
         subprocess.Popen(
             ['python', dir_path+'\Active_Window.py'])
@@ -144,7 +141,7 @@ def log_history(i=0):
     global lbl_output #
 
     # Update the listbox
-    daq_list.append(f"ERROR{i}\n") # DEBUG
+    daq_list.append(f"ERROR{i}\t35\n") # DEBUG
     i += 1 # DEBUG
     if not daq_details:
         daq_details = tk.StringVar(value=daq_list)
