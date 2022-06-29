@@ -48,14 +48,14 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 import time
 import sys
-from datetime import date
+import datetime
 import serial
 import serial.tools.list_ports
 
 
 # ============= Globals
 # Time & date
-today = date.today()
+today = datetime.date.today()
 year = today.year
 yr = year % 100 # Keep last 2 digits
 
@@ -72,8 +72,7 @@ job_window = None
 settings_window = None
 
 # Job settings --------------------------------------------------
-# TODO: figure out how to get the real values from Job Settings window
-# job_settings dictionary (will get written to JSON)
+# TODO: add code to write to/read from JSON
 job_settings = {
     "Job Number": job_number,
     "COM Port": "",
@@ -85,6 +84,7 @@ job_settings = {
 com_port = job_settings["COM Port"]
 shunt_resistor = job_settings["Shunt Resistor"]
 decimation = job_settings["Decimation"]
+amps_baseline = 10 # TODO: don't hardcode - include with other settings
 flag_trigger = job_settings["Flag Trigger"]
 
 # Widget
@@ -104,26 +104,43 @@ active_com_ports = []   # Make empty list to hold active COM ports
 # Shunt Resistor
 resistor_values = [0.01, 0.1, 1, 5, 10]
 
+# Initial setup flag
+initial_setup = 0 # When set to 1, initial setup completed
+
 # Device levels ----------------------------------------
 lbl_voltage = None
 lbl_current = None
 volts = 0.00
 amps = 0.00
 
-# Flagging ---------------------------------------------
+# GUI vars ---------------------------------------------
+# Flagging
+"""
+flags = [bool, bool, bool]
+The lower the index, the higher the priority.
+flags[0] ----> Priority: 0, RED, process error (ex. disc. device)
+flags[1] ----> Priority: 1, ORANGE, levels trigger (levels out of range)
+flags[2] ----> Priotiry: 2, YELLOW, levels warning (levels near trigger)
+"""
 lbx_flags_details = None    # Make this widget global
 flags_list = []             # Start with empty list for the listbox
 flags_details = None        # Make StringVar type
-previous_selected = None
+prev_sel_flags = None       # Used for enhanced listbox deselection
 lbl_flags_beacon = None     # Make this widget global
-flag = False
+flags = [False]*3           # 3 flags
+# Output string
+flag_output_str = ""
+flags_give_msg = [True]*len(flags) # Display the msg for each flag?
 
-# Readings history -------------------------------------
-lbx_history_details = None    # Make 
+# Readings history
+lbx_history_details = None  # Make this widget global
 history_list = []           # Start with empty list for the listbox
 history_details = None      # Make StringVar type
+prev_sel_history = None     # Used for enhanced listbox deselection
+# Output string
+history_output_str = ""
 
-# Status -----------------------------------------------
+# Status
 status = "<placeholder>"
 pgr_status_bar = None
 
@@ -148,6 +165,9 @@ com_port = ""       # Will hold hooked_port.device string (ex. "COM5")
 # Contains accumulated values for each analog channel 
 # used for the average calculation
 achan_accumulation_table = list(())
+
+# Used to store the last available reading (averaged) for each channel
+all_volts = [0]*len(slist) # Used in readings history
 
 # Define flag to indicate if acquiring is active 
 acquiring = False
@@ -203,13 +223,14 @@ def update_levels():
                 achan_accumulation_table[achan_number] = result + \
                     achan_accumulation_table[achan_number]
                 achan_number += 1
-                # End of a decimation loop. So, 
+
+                # End of a decimation loop for channel 1. So...
+                # 1. Set reading for channel 1
+                # 2. Set device level: volts
                 # volts = accumulator value / decimation_factor
-                volts = achan_accumulation_table[achan_number-1] * \
+                all_volts[0] = achan_accumulation_table[achan_number-1] * \
                     10 / 32768 / decimation
-                # output_string = output_string + "{: 3.3f}, "\
-                # .format(achan_accumulation_table[achan_number-1] * \
-                # 10 / 32768 / decimation)
+                volts = all_volts[0]
 
             elif (dec_count == 1) and (slist_pointer != 0):
                 # Decimation loop finished and NOT the first slist position
@@ -219,16 +240,27 @@ def update_levels():
                 achan_accumulation_table[achan_number] = result + \
                     achan_accumulation_table[achan_number]
                 achan_number += 1
-                # Right now, only interested in index 1 
-                # TODO: change so we can use indexes 2 & 3
+
                 if slist_pointer == 1:
-                    # End of a decimation loop. So, amps =
-                    # value / decimation_factor to the output string
-                    amps = achan_accumulation_table[achan_number-1] * \
+                    # End of a decimation loop for channel 2. So...
+                    # 1. Set reading for channel 2
+                    # 2. Set device levels: amps
+                    all_volts[1] = \
+                        achan_accumulation_table[achan_number-1] * \
                         10 / 32768 / decimation
-                    # output_string = output_string + "{: 3.3f}, "\
-                    #     .format(achan_accumulation_table[achan_number-1] * \
-                    #         10 / 32768 / decimation)
+                    amps =  (all_volts[1] - all_volts[0]) / shunt_resistor
+                if slist_pointer == 2:
+                    # End of a decimation loop for channel 3. So...
+                    # 1. Set reading for channel 3
+                    all_volts[2] = \
+                        achan_accumulation_table[achan_number-1] * \
+                        10 / 32768 / decimation
+                if slist_pointer == 3:
+                    # End of a decimation loop for channel 4. So...
+                    # 1. Set reading for channel 4
+                    all_volts[3] = \
+                        achan_accumulation_table[achan_number-1] * \
+                        10 / 32768 / decimation
 
             elif (dec_count != 1) and (slist_pointer == 0):
                 # Decimation loop NOT finished and first slist position
@@ -254,65 +286,29 @@ def update_levels():
             if (slist_pointer + 1) > (len(slist)):
                 # End of a pass through slist items
                 if dec_count == 1:
-                    # Get here if decimation loop has finished
-                    dec_count = decimation
+
+                    # DEECIMATION LOOP FINISHED --------
+                    dec_count = decimation # Reset decimation counter
+
+                    # Update device levels widget
+                    lbl_voltage['text'] = "{0:.2f} V".format(volts)
+                    lbl_current['text'] = "{0:.2f} A".format(amps)
+                    # Update flag and history widgets
+                    check_conditions()
+                    if any(flags):
+                        update_flags_details()
+                    update_readings_history()
+
                     # Reset analog channel accumulators to zero
                     achan_accumulation_table = [0] * \
                         len(achan_accumulation_table)
-                    # Append digital inputs to output string
-                    # output_string = output_string + "{: 3d}, ".format(dig_in)
-                    # print(output_string.rstrip(", ") + "          ", end="\r")
-                    # output_string = ""
                 else:
                     dec_count -= 1             
                 slist_pointer = 0
                 achan_number = 0
 
-    # Update widgets
-    lbl_voltage['text'] = "{0:.2f} V".format(volts)
-    lbl_current['text'] = "{0:.2f} V".format(amps)
-
-    job_window.after(5, update_levels) # Repeat after 5 ms pause
-
-#
-# flash_beacon
-#
-def update_flag_beacon():
-    """Enable or disable the flashing beacon."""
-    global job_window # Connect to the global variable
-    if flag:
-        change_color()
-    else:
-        lbl_flags_beacon.config(bg="white") # If no flag, make bg white
-    job_window.after(200, update_flag_beacon)         # Run every 200 ms
-
-# 
-# update_flags_details
-#
-def update_flags_details(i=0):
-    """Update the flags details listbox."""
-    global flags_list        # Connect to the global variables
-    global flags_details     #
-    global lbx_flags_details #
-
-    # Update the listbox
-    flags_list.append(f"ERROR{i}\n") # DEBUG
-    i += 1 # DEBUG
-    if not flags_details:
-        flags_details = tk.StringVar(value=flags_list)
-    else:
-        flags_details.set(flags_list)
-    lbx_flags_details['listvariable'] = flags_details # Update the widget
-
-    # Decide how to focus the listbox
-    lbx_flags_details.see("end") # Keep latest output in view
-    # If user has made a selection, keep it visible
-    idxs = lbx_flags_details.curselection()
-    if len(idxs)==1:
-            idx = lbx_flags_details.curselection()
-            lbx_flags_details.selection_set(idx)
-            lbx_flags_details.see(idx)
-    job_window.after(1000, update_flags_details, i)
+    # Repeat after 5ms pause
+    job_window.after(5, update_levels)
 
 #
 # update_com_ports
@@ -329,7 +325,8 @@ def update_com_ports(override=0):
     try:
         if settings_window.state() == "normal" or override == 1:
             # If so, update the widget
-            # Get a list of active com ports to scan for possible DATAQ Instruments devices
+            # Get a list of active com ports to scan 
+            # for possible DATAQ Instruments devices
             active_com_ports = []   # Reset list
             hooked_ports = {}       # Reset dict
             hooked_port = None      # Reset port
@@ -343,10 +340,84 @@ def update_com_ports(override=0):
             cmb_com_port['values'] = active_com_ports # Update the widget
             job_window.after(1000, update_com_ports)
     except:
-        job_window.after(1000, update_com_ports)    
+        job_window.after(1000, update_com_ports)
+
+#
+# check_conditions
+#
+def check_conditions():
+    """Checks job conditions and, if needed, sets any flags."""
+    global flags # Connect to global variables
+
+    # Only proceed if acquiring data
+    if not acquiring:
+        return
+
+    # Check serial connection status
+    # flag0
+    # TODO: add this functionality
+
+    # Check device levels
+    lower_limit = amps_baseline - flag_trigger
+    upper_limit = amps_baseline + flag_trigger
+    lower_warning = lower_limit + (0.25*flag_trigger) # 75% to trigger
+    upper_warning = upper_limit - (0.25*flag_trigger) #
+    # flag1
+    if not (lower_limit < amps < upper_limit):
+        flags[1] = True
+    # flag2
+    if not (lower_warning < amps < upper_warning) and not flags[1]:
+        # Don't set flag2 if flag1 is already set
+        flags[2] = True
+    
+    job_window.after(200, check_conditions)
+
+#
+# update_flag_beacon
+#
+def update_flag_beacon():
+    """Change the color of the flags beacon box,
+    depending of the top priority flag and acquiring status.
+    """
+    # Don't proceed if not acquiring data
+    if not acquiring:
+        job_window.after(200, update_flag_beacon)
+        return
+
+    # Get the current beacon color
+    current_color = lbl_flags_beacon.cget("background")
+    next_color = "green"
+    
+    # Decide on the next color
+    if current_color == "white":
+        if flags[0]:
+            next_color = "red"
+        elif flags[1]:
+            next_color = "orange"
+        elif flags[2]:
+            next_color = "yellow"
+    elif any(flags):
+        next_color = "white"
+    else: 
+        next_color = "green"
+
+    # Change the beacon color
+    lbl_flags_beacon.config(background=next_color)
+
+    job_window.after(200, update_flag_beacon)
 
 
 # ============= Helper functions
+#
+# collection_teardown
+#
+def collection_teardown():
+    """Wrapper for teardown procedures."""
+    if acquiring:
+        stop_collection()
+    close_all_ports()
+    clear_all_flags()
+
 #
 # close_all_ports
 #
@@ -433,25 +504,105 @@ def config_DATAQ():
     # Init the logical channel number for enabled analog channels
     achan_number = 0
 
+# 
+# update_flags_details
 #
-# change_color
-#
-def change_color():
-    """Change the color of the flags beacon box."""
-    current_color = lbl_flags_beacon.cget("background")
-    if current_color == "red":
-        next_color = "white"  
+def update_flags_details():
+    """Update the flags details listbox."""
+    # Only proceed if there is a flag which 
+    proceed = False
+    for idx in range(len(flags)):
+        if flags[idx] and flags_give_msg[idx]:
+            proceed = True
+    if not proceed:
+        return
+
+    # Connect to the global variables ----------------
+    global lbx_flags_details
+    global flags_list
+    global flags_details
+    global flag_output_str
+
+    # Return if there are no new messages to display
+    if not any(flags_give_msg):
+        return
+
+    # Construct the output string
+    flag_output_str = "" # Clear the output string
+    # Add time
+    now = datetime.datetime.now()
+    dt_string = now.strftime("%m/%d/%Y %H:%M:%S") # mm/dd/YY H:M:S
+    flag_output_str += dt_string
+    flag_output_str += "        " # Add spaces after time info
+    # Flag info
+    if flags[0] and flags_give_msg[0]:
+        flg_string = "ERROR: Encountered problem while reading from device."
+        flags_give_msg[0] = False
+    elif flags[1] and flags_give_msg[1]:
+        flg_string = "TRIGGER [CURRENT]: Current readings outside " + \
+            "acceptable levels."
+        flags_give_msg[1] = False
+    elif flags[2] and flags_give_msg[2]:
+        flg_string = "WARNING [CURRENT]: Abnormal current readings."
+        flags_give_msg[2] = False
+    flag_output_str += flg_string
+
+    # Update the listbox
+    flags_list.append(flag_output_str)
+    if not flags_details:
+        flags_details = tk.StringVar(value=flags_list)
     else:
-        next_color = "red"
-    lbl_flags_beacon.config(background=next_color)
+        flags_details.set(flags_list)
+    lbx_flags_details['listvariable'] = flags_details # Update the widget
+
+    # Decide how to focus the listbox
+    # TODO: add a way to allow the user to either keep list static or
+    # always show most recent entries (will make it easier for user to browse
+    # past entries)
+    lbx_flags_details.see("end") # Keep latest output in view
 
 #
-# toggle_flag
+# update_readings_history
 #
-def toggle_flag():
-    """Toggles the flag for testing purposes."""
-    global flag # Connect with the global variable
-    flag = not flag
+def update_readings_history():
+    """Update the readings history detail view with the new readings."""
+    # Connect to the global variables ------------------
+    global lbx_history_details
+    global history_list
+    global history_details
+    global history_output_str
+
+    # Construct the output string -------------------------
+    # TODO: work on text alignment
+    history_output_str = "" # Clear the output string
+    # Add time
+    now = datetime.datetime.now()
+    dt_string = now.strftime("%m/%d/%Y %H:%M:%S") # mm/dd/YY H:M:S
+    history_output_str += dt_string
+    history_output_str += "        " # Add spaces after time info
+    # Add channel readings
+    ch_string = f"channels: {all_volts[0]: .2f} V, " + \
+        f"{all_volts[1]: .2f} V, {all_volts[2]: .2f} V, " + \
+        f"{all_volts[3]: .2f} V"
+    history_output_str += ch_string
+    history_output_str += "         " # Add spaces after channels info
+    # Add device levels
+    lvls_string = f"device levels: {volts: .2f} V, {amps: .2f} A"
+    history_output_str += lvls_string
+
+    # Update the listbox
+    history_list.append(history_output_str)
+    if not history_details:
+        history_details = tk.StringVar(value=history_list)
+    else:
+        history_details.set(value=history_list)
+    lbx_history_details['listvariable'] = history_details # Update the widget
+
+    # Decide how to focus the listbox
+    # TODO: add a way to allow the user to either keep list static or
+    # always show most recent entries (will make it easier for user to browse
+    # past entries)
+    lbx_history_details.see("end") # Keep latest output in view
 
 
 # ============= Event handlers
@@ -471,8 +622,8 @@ def ask_close():
     if messagebox.askokcancel(
         message="Are you sure you want to close the window?", 
         icon='warning', title="Please confirm."):
-        # Make sure we close all hooked ports
-        close_all_ports()
+        # End all processes relating to active data collection
+        collection_teardown()
         # Close the job window and system exit
         job_window.destroy()
         SystemExit
@@ -537,6 +688,8 @@ def stop_collection():
     lbl_voltage['text'] = "{0:.2f} V".format(0)
     lbl_current['text'] = "{0:.2f} V".format(0)
 
+    clear_all_flags()
+
 #
 # retry_settings
 #
@@ -552,12 +705,50 @@ def retry_settings(message):
 #
 def deselect_item(event):
     """Left click deselects the listbox item."""
-    global previous_selected # Connect to the global variables
-    global lbx_flags_details # 
+    # Connect to the global variables ------------------
+    global prev_sel_flags
+    global prev_sel_history
+    global lbx_flags_details
 
-    if lbx_flags_details.curselection() == previous_selected:
+    # Flags details listbox
+    if lbx_flags_details.curselection() == prev_sel_flags:
         lbx_flags_details.selection_clear(0, tk.END)
-    previous_selected = lbx_flags_details.curselection()
+    prev_sel_flags = lbx_flags_details.curselection()
+
+    # History details listbox
+    if lbx_history_details.curselection() == prev_sel_history:
+        lbx_history_details.selection_clear(0, tk.END)
+    prev_sel_history = lbx_history_details.curselection()
+
+#
+# clear_flag
+#
+def clear_top_flag():
+    """Clears topmost (top priority) flag."""
+    global flags # Connect with the global variable
+
+    # Clear the topmost flag
+    for idx in range(len(flags)):
+        if flags[idx] == True:
+            flags[idx] = False
+            flags_give_msg[idx] = True
+            return # Exit b/c only want to clear one flag at most
+
+#
+# clear_all_flags
+#
+def clear_all_flags():
+    """Clears all flags."""
+    global flags # Connect with the global variable
+
+    # Clear the topmost flag
+    for idx in range(len(flags)):
+        if flags[idx] == True:
+            flags[idx] = False
+            flags_give_msg[idx] = True
+    
+    lbl_flags_beacon.config(background="white")
+
 
 # ============= Setup visuals
 #
@@ -576,7 +767,6 @@ def setup_job_window():
     global lbl_flags_beacon     # Flags
     global flags_details
     global lbx_flags_details
-    global previous_selected
     global history_details      # History
     global lbx_history_details
     global pgr_status_bar       # Status
@@ -740,18 +930,18 @@ def setup_job_window():
         relief=tk.SUNKEN,
         borderwidth=2,
         bg="white")
-    btn_toggle_flag = tk.Button(
+    btn_clear_flag = tk.Button(
         frm_flags,
-        text="Toggle flag",
+        text="Clear flag",
         width=15,
         relief=tk.RIDGE,
         borderwidth=2,
         bg="#c9c9c9",
-        command=toggle_flag)
+        command=clear_top_flag)
     # Pack widgets
     lbl_flags_header.pack(side=tk.LEFT)
     lbl_flags_beacon.pack(side=tk.RIGHT)
-    btn_toggle_flag.pack(side=tk.RIGHT)
+    btn_clear_flag.pack(side=tk.RIGHT)
 
     # Setup flags frame (details) ----------------------
     # Create widgets
@@ -761,8 +951,6 @@ def setup_job_window():
         listvariable=flags_details,
         height=4,
         bg="white")
-    # Configure widgets
-    job_window.bind('<ButtonPress-1>', deselect_item)
     # Pack widgets
     lbx_flags_details.pack(fill=tk.BOTH)
 
@@ -815,6 +1003,10 @@ def setup_job_window():
     frm_history_details.pack(fill=tk.BOTH)
     frm_status.pack(fill=tk.X)
 
+    # Additional window configuration ------------------
+    # Action bindings
+    job_window.bind('<ButtonPress-1>', deselect_item)
+
 #
 # setup_settings_window
 #
@@ -851,8 +1043,8 @@ def get_settings():
         global ser
 
         # Some setup before accepting new settings -----
-        # Make sure all COM ports are closed
-        close_all_ports()
+        # End all processes related to active data collection
+        collection_teardown()
 
         # Connect globals to locals
         com_port = com_port_local
@@ -911,6 +1103,7 @@ def get_settings():
             f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
         lbl_settings_details['text'] = settings_details
         
+        initial_setup = 1 # Completed at least one setup
 
         # Close settings window ------------------------
         settings_window.destroy()
@@ -1087,6 +1280,7 @@ def get_settings():
 if __name__ == '__main__':
     setup_job_window()
     get_settings()
+    job_window.after(200, check_conditions)
     job_window.after(200, update_flag_beacon)
     job_window.after(1000, update_flags_details)
     job_window.after(1000, update_com_ports)
