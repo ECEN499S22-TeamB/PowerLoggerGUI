@@ -983,7 +983,7 @@ def setup_job_window():
     lbx_history_details = tk.Listbox(
         frm_history_details,
         bg="white",
-        height=21
+        height=20
     )
     # Pack widgets
     lbx_history_details.pack(fill=tk.BOTH)
@@ -1111,7 +1111,7 @@ def get_settings():
             f"COM Port: \t\t{com_port}\n" + \
             f"Shunt Resistor: \t\t{shunt_resistor} \u03A9\n" + \
             f"Decimation Factor: \t{decimation} samples/update\n" + \
-            f"Expected Current: \t{expected_amps} A\n" + \
+            f"Expected Current: \t\t{expected_amps} A\n" + \
             f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
         lbl_settings_details['text'] = settings_details
         
