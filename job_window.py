@@ -295,8 +295,8 @@ def update_levels():
                     dec_count = decimation # Reset decimation counter
 
                     # Update device levels widget
-                    lbl_voltage['text'] = "{0:.2f} V".format(volts)
-                    lbl_current['text'] = "{0:.2f} A".format(amps)
+                    lbl_voltage['text'] = "{0:.3f} V".format(volts)
+                    lbl_current['text'] = "{0:.3f} A".format(amps)
                     # Update flag and history widgets
                     check_conditions()
                     if any(flags):
@@ -586,9 +586,9 @@ def update_readings_history():
     history_output_str += dt_string
     history_output_str += "        " # Add spaces after time info
     # Add channel readings
-    ch_string = f"channels: {all_volts[0]: .2f} V, " + \
-        f"{all_volts[1]: .2f} V, {all_volts[2]: .2f} V, " + \
-        f"{all_volts[3]: .2f} V"
+    ch_string = f"channels: {all_volts[0]: .3f} V, " + \
+        f"{all_volts[1]: .3f} V, {all_volts[2]: .3f} V, " + \
+        f"{all_volts[3]: .3f} V"
     history_output_str += ch_string
     history_output_str += "         " # Add spaces after channels info
     # Add device levels
@@ -981,7 +981,7 @@ def setup_job_window():
     lbx_history_details = tk.Listbox(
         frm_history_details,
         bg="white",
-        height=21
+        height=20
     )
     # Pack widgets
     lbx_history_details.pack(fill=tk.BOTH)
@@ -1045,7 +1045,8 @@ def get_settings():
 
         # Some setup before accepting new settings -----
         # End all processes related to active data collection
-        collection_teardown()
+        # collection_teardown()
+        stop_collection()
 
         # Connect globals to locals
         com_port = com_port_local
@@ -1109,7 +1110,7 @@ def get_settings():
             f"COM Port: \t\t{com_port}\n" + \
             f"Shunt Resistor: \t\t{shunt_resistor} \u03A9\n" + \
             f"Decimation Factor: \t{decimation} samples/update\n" + \
-            f"Expected Current: \t{expected_amps} A\n" + \
+            f"Expected Current: \t\t{expected_amps} A\n" + \
             f"Flag Trigger: \t\t\u00B1 {flag_trigger} A"
         lbl_settings_details['text'] = settings_details
         
