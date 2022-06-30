@@ -252,7 +252,9 @@ def update_levels():
                     all_volts[1] = \
                         achan_accumulation_table[achan_number-1] * \
                         10 / 32768 / decimation
-                    amps =  (all_volts[1] - all_volts[0]) / shunt_resistor
+                    # amps =  (all_volts[1] - all_volts[0]) / shunt_resistor
+                    # Channel 2 measuring directly accross shunt resistor...
+                    amps =  all_volts[1] / shunt_resistor
                 if slist_pointer == 2:
                     # End of a decimation loop for channel 3. So...
                     # 1. Set reading for channel 3
@@ -295,8 +297,8 @@ def update_levels():
                     dec_count = decimation # Reset decimation counter
 
                     # Update device levels widget
-                    lbl_voltage['text'] = "{0:.2f} V".format(volts)
-                    lbl_current['text'] = "{0:.2f} A".format(amps)
+                    lbl_voltage['text'] = "{0:.3f} V".format(volts)
+                    lbl_current['text'] = "{0:.3f} A".format(amps)
                     # Update flag and history widgets
                     check_conditions()
                     if any(flags):
@@ -416,9 +418,9 @@ def update_flag_beacon():
 
 # ============= Helper functions
 #
-# collection_teardown
+# teardown
 #
-def collection_teardown():
+def teardown():
     """Wrapper for teardown procedures."""
     if acquiring:
         stop_collection()
@@ -586,13 +588,13 @@ def update_readings_history():
     history_output_str += dt_string
     history_output_str += "        " # Add spaces after time info
     # Add channel readings
-    ch_string = f"channels: {all_volts[0]: .2f} V, " + \
-        f"{all_volts[1]: .2f} V, {all_volts[2]: .2f} V, " + \
-        f"{all_volts[3]: .2f} V"
+    ch_string = f"channels: {all_volts[0]: .3f} V, " + \
+        f"{all_volts[1]: .3f} V, {all_volts[2]: .3f} V, " + \
+        f"{all_volts[3]: .3f} V"
     history_output_str += ch_string
     history_output_str += "         " # Add spaces after channels info
     # Add device levels
-    lvls_string = f"device levels: {volts: .2f} V, {amps: .2f} A"
+    lvls_string = f"device levels: {volts: .3f} V, {amps: .3f} A"
     history_output_str += lvls_string
 
     # Update the listbox
@@ -633,7 +635,7 @@ def ask_close():
         message="Are you sure you want to close the window?", 
         icon='warning', title="Please confirm."):
         # End all processes relating to active data collection
-        collection_teardown()
+        teardown()
         # Close the job window and system exit
         job_window.destroy()
         SystemExit
@@ -698,8 +700,8 @@ def stop_collection():
         acquiring = False
 
     # Update widgets (levels at 0 when not acquiring)
-    lbl_voltage['text'] = "{0:.2f} V".format(0)
-    lbl_current['text'] = "{0:.2f} V".format(0)
+    lbl_voltage['text'] = "{0:.3f} V".format(0)
+    lbl_current['text'] = "{0:.3f} V".format(0)
 
     clear_all_flags()
     lbl_status["text"] = f"{com_port}: READY"
@@ -1044,8 +1046,8 @@ def get_settings():
         global initial_setup_done
 
         # Some setup before accepting new settings -----
-        # End all processes related to active data collection
-        collection_teardown()
+        # Stop data collection
+        stop_collection()
 
         # Connect globals to locals
         com_port = com_port_local
