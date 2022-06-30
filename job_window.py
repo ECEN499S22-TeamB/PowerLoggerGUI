@@ -541,6 +541,9 @@ def update_flags_details():
     dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
     flag_output_str += dt_string
     flag_output_str += "        " # Add spaces after time info
+    # Add COM port
+    flag_output_str += com_port
+    flag_output_str += "        "
     # Flag info
     if flags[0] and flags_give_msg[0]:
         flg_string = "ERROR: Encountered problem while reading from device."
@@ -587,6 +590,9 @@ def update_readings_history():
     dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
     history_output_str += dt_string
     history_output_str += "        " # Add spaces after time info
+    # Add COM port
+    history_output_str += com_port
+    history_output_str += "        "
     # Add channel readings
     ch_string = f"channels: {all_volts[0]: .3f} V, " + \
         f"{all_volts[1]: .3f} V, {all_volts[2]: .3f} V, " + \
@@ -647,6 +653,17 @@ def start_collection():
     """Start collecting data from the DATAQ."""
     global acquiring # Connect to the global variable
 
+    # Has the user completed an initial setup?
+    if not initial_setup_done:
+        message="Please enter all job settings, then try again."
+        messagebox.showerror(
+            title="Error: Setup Incomplete", 
+            message=message)
+        get_settings()
+        job_window.wait_window(settings_window)
+        return # Exit once the user has closed the settings window
+
+
     # COM port error handling
     try:
         # Before starting data collection, make sure the COM port is still hooked.
@@ -704,7 +721,12 @@ def stop_collection():
     lbl_current['text'] = "{0:.3f} V".format(0)
 
     clear_all_flags()
-    lbl_status["text"] = f"{com_port}: READY"
+
+    # stop_collection gets called by close_okay,
+    # which can be called before the initial setup is completed,
+    # so perform a check here. 
+    if initial_setup_done:
+        lbl_status["text"] = f"{com_port}: READY"
 
 #
 # retry_settings
@@ -794,7 +816,7 @@ def setup_job_window():
     # Configure the window -----------------------------
     job_window.title(f"Power Logger: RTS{yr} - J{job_number}")
     job_window.attributes('-topmost', True)
-    job_window.geometry('600x750-10+10')    # Place in upper right screen
+    job_window.geometry('650x750-10+10')    # Place in upper right screen
     # TODO: Redo layout with grid for more robustness?
     job_window.resizable(False, False)      # Don't make window resizable
 
@@ -983,7 +1005,7 @@ def setup_job_window():
     lbx_history_details = tk.Listbox(
         frm_history_details,
         bg="white",
-        height=20
+        height=21
     )
     # Pack widgets
     lbx_history_details.pack(fill=tk.BOTH)
