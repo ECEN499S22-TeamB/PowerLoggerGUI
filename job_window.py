@@ -136,10 +136,8 @@ flag_output_str = ""
 flags_give_msg = [True]*len(flags) # Display the msg for each flag?
 
 # Readings history
-lbx_history_details = None  # Make this widget global
+tree_history_details = None # Make this widget global
 prev_sel_history = None     # Used for enhanced listbox deselection
-# Output string
-history_output_str = ""
 
 # Status
 pgr_status_bar = None
@@ -425,7 +423,6 @@ def teardown():
     if acquiring:
         stop_collection()
     close_all_ports()
-    clear_all_flags()
 
 #
 # close_all_ports
@@ -579,45 +576,48 @@ def update_flags_details():
 def update_readings_history():
     """Update the readings history detail view with the new readings."""
     # Connect to the global variables ------------------
-    global lbx_history_details
-    global history_output_str
+    global tree_history_details
 
-    # Construct the output string -------------------------
-    # TODO: work on text alignment
-    history_output_str = "" # Clear the output string
-    # Add time
+    # Construct the output strings ---------------------
+    # DateTime
     now = datetime.datetime.now()
     dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
-    history_output_str += dt_string
-    history_output_str += "        " # Add spaces after time info
-    # Add COM port
-    history_output_str += com_port
-    history_output_str += "        "
-    # Add channel readings
-    ch_string = f"channels: {all_volts[0]: .3f} V, " + \
-        f"{all_volts[1]: .3f} V, {all_volts[2]: .3f} V, " + \
-        f"{all_volts[3]: .3f} V"
-    history_output_str += ch_string
-    history_output_str += "         " # Add spaces after channels info
-    # Add device levels
-    lvls_string = f"device levels: {volts: .3f} V, {amps: .3f} A"
-    history_output_str += lvls_string
+    # Channel readings
+    # TODO: fix text alignment (-'s seem to be the problem)
+    ch_string = f"{all_volts[0]:>7.3f} V, {all_volts[1]:>7.3f} V, " + \
+        f"{all_volts[2]:>7.3f} V, {all_volts[3]:>7.3f} V"
+    # Device levels
+    lvls_string = f"{volts:>7.3f} V, {amps:>7.3f} A"
 
-    # Update the listbox
-    lbx_history_details.insert(tk.END, history_output_str)
-    # Add color formatting
+
+    # Format output and add to widget ------------------
+    # Find the tag for this entry (for formatting row color)
+    # TODO: add flag0
+    tag="acquiring"
+    text_color="green"
+    back_color="white"
     if flags[1]:
-        lbx_history_details.itemconfig(tk.END, fg="orange")
+        tag="flag1"
+        text_color="orange"
+        back_color="white"
     elif flags[2]:
-        lbx_history_details.itemconfig(tk.END, fg="yellow")
-    else:
-        lbx_history_details.itemconfig(tk.END, fg="green")
+        tag="flag2"
+        text_color="yellow"
+        back_color="white"
+
+    # Insert values in next row
+    tree_history_details.insert('', 'end', text=dt_string,
+        values=(com_port, ch_string, lvls_string),
+        tags=[tag])
+
+    # Format row color
+    tree_history_details.tag_configure(tag, foreground=text_color, background=back_color)
 
     # Decide how to focus the listbox
     # TODO: add a way to allow the user to either keep list static or
     # always show most recent entries (will make it easier for user to browse
     # past entries)
-    lbx_history_details.see("end") # Keep latest output in view
+    # tree_history_details.see("end") # Keep latest output in view
 
 
 
@@ -741,22 +741,24 @@ def retry_settings(message):
 #
 # deselect_item
 #
-def deselect_item(event):
-    """Left click deselects the listbox item."""
-    # Connect to the global variables ------------------
-    global prev_sel_flags
-    global prev_sel_history
-    global lbx_flags_details
+# TODO: update to work with Treeview instead of Listbox
+# def deselect_item(event):
+#     """Left click deselects the listbox item."""
+#     # Connect to the global variables ------------------
+#     global prev_sel_flags
+#     global prev_sel_history
+#     global lbx_flags_details
+#     global lbx_history_details
 
-    # Flags details listbox
-    if lbx_flags_details.curselection() == prev_sel_flags:
-        lbx_flags_details.selection_clear(0, tk.END)
-    prev_sel_flags = lbx_flags_details.curselection()
+#     # Flags details listbox
+#     if lbx_flags_details.curselection() == prev_sel_flags:
+#         lbx_flags_details.selection_clear(0, tk.END)
+#     prev_sel_flags = lbx_flags_details.curselection()
 
-    # History details listbox
-    if lbx_history_details.curselection() == prev_sel_history:
-        lbx_history_details.selection_clear(0, tk.END)
-    prev_sel_history = lbx_history_details.curselection()
+#     # History details listbox
+#     if lbx_history_details.curselection() == prev_sel_history:
+#         lbx_history_details.selection_clear(0, tk.END)
+#     prev_sel_history = lbx_history_details.curselection()
 
 #
 # clear_flag
@@ -807,7 +809,7 @@ def setup_job_window():
     global lbl_current
     global lbl_flags_beacon     # Flags
     global lbx_flags_details
-    global lbx_history_details  # History
+    global tree_history_details # History
     global pgr_status_bar       # Status
     global lbl_status
 
@@ -823,9 +825,24 @@ def setup_job_window():
     # Intercept the close button
     job_window.protocol("WM_DELETE_WINDOW", ask_close)
 
-    # Create a ttk style instance
+    # Create a ttk style instance ----------------------
     style = ttk.Style(job_window)
     style.theme_use('clam') # Choose the theme for ttk frames/widgets
+    #from os import name as OS_Name
+    if job_window.getvar('tk_patchLevel')=='8.6.9': #and OS_Name=='nt':
+        def fixed_map(option):
+            """
+            Fix for setting text colour for Tkinter 8.6.9
+            From: https://core.tcl.tk/tk/info/509cafafae
+            
+            Returns the style map for 'option' with any styles starting with
+            ('!disabled', '!selected', ...) filtered out.
+            
+            style.map() returns an empty list for missing options, so this
+            should be future-safe.
+            """
+            return [elm for elm in style.map('Treeview', query_opt=option) if elm[:2] != ('!disabled', '!selected')]
+        style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))
 
     # Create frames ------------------------------------
     frm_settings = tk.Frame(
@@ -1002,13 +1019,22 @@ def setup_job_window():
 
     # Setup readings history frame (details) -----------
     # Create widgets
-    lbx_history_details = tk.Listbox(
+    tree_history_details = ttk.Treeview(
         frm_history_details,
-        bg="white",
-        height=21
+        columns=('DateTime', 'COM Port', 'Channels', 'Device Levels'),
+        height=15
     )
+    # Configure widgets
+    tree_history_details.heading('#0', text="DateTime")
+    tree_history_details.heading('#1', text="COM Port")
+    tree_history_details.heading('#2', text="Channels")
+    tree_history_details.heading('#3', text="Device Levels")
+    tree_history_details.column('#0', minwidth=165, width=165, stretch=False)
+    tree_history_details.column('#1', minwidth=75, width=75, stretch=False)
+    tree_history_details.column('#2', minwidth=230, width=230, stretch=False)
+    tree_history_details.column('#3', minwidth=173, width=173, stretch=False)
     # Pack widgets
-    lbx_history_details.pack(fill=tk.BOTH)
+    tree_history_details.pack(fill=tk.BOTH)
 
     # Setup status frame -------------------------------
     # Create widgets
@@ -1041,7 +1067,8 @@ def setup_job_window():
 
     # Additional window configuration ------------------
     # Action bindings
-    job_window.bind('<ButtonPress-1>', deselect_item)
+    # TODO: uncomment out when deselect_item has been updated
+    # job_window.bind('<ButtonPress-1>', deselect_item)
 
 #
 # setup_settings_window
@@ -1070,6 +1097,13 @@ def get_settings():
         # Some setup before accepting new settings -----
         # Stop data collection
         stop_collection()
+        # TODO: (low priority) why can't I used teardown() here instead?
+        # Problem with closing the serial ports here?
+        # The bug: If I open the settings window while already acquiring data,
+        # then, by pressing the 'okay' button in the settings window, I stop
+        # the current data acquisition process, then press 'start', the DATAQ
+        # seems to start sending garbage values. At this point, pressing
+        # 'stop' and then 'start' again seems to correct the problem. 
 
         # Connect globals to locals
         com_port = com_port_local
@@ -1079,7 +1113,9 @@ def get_settings():
         flag_trigger = flag_trigger_local
 
         # Extract settings -----------------------------
-        # TODO: fortify validation(?)
+        # TODO: fortify validation
+        # Bug: pressing 'Okay' in settings window will throw error
+        # if decimation field is blank. May happen with other settings...
 
         # Get index value of selected COM port
         com_idx = cmb_com_port.current()
