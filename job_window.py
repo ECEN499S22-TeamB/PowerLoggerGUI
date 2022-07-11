@@ -15,8 +15,8 @@ Team B - Radiation Test Solutions
         509-596-8539
         amears@radiationtestsolutions.com
     Austin Hilderbrand
-        602-390-5594
-        hil16039@byui.edu
+        256-916-8954
+        austinlang748@gmail.com
     Nathan Taylor
         775-397-8139
         tay18060@byui.edu
@@ -57,18 +57,20 @@ import serial.tools.list_ports
 
 
 # ============= Globals
-# Time & date
-today = datetime.date.today()
-year = today.year
-yr = year % 100 # Keep last 2 digits
-
 # Command line args passed from caller (main_menu.py) ---------------
+# Job year
+if len(sys.argv) < 2:
+    year = str(9999) # For testing purposes
+else:
+    year = sys.argv[1] # Unique Job ID
+year = int(year)
+yr = str(year % 100) # Keep last 2 digits
 # Job number
 if len(sys.argv) < 2:
     job_number = str(9999) # For testing purposes
 else:
-    job_number = sys.argv[1]   # Unique Job ID
-job_number = job_number.zfill(4)  # Leading zeros if less than 4 digits
+    job_number = sys.argv[2]     # Unique Job ID
+job_number = job_number.zfill(4) # Leading zeros if less than 4 digits
 
 # Windows -----------------------------------------------------------
 job_window = None
@@ -127,12 +129,10 @@ flags[0] ----> Priority: 0, RED, process error (ex. disc. device)
 flags[1] ----> Priority: 1, ORANGE, levels trigger (levels out of range)
 flags[2] ----> Priotiry: 2, YELLOW, levels warning (levels near trigger)
 """
-lbx_flags_details = None    # Make this widget global
+tree_flags_details = None   # Make this widget global
 prev_sel_flags = None       # Used for enhanced listbox deselection
 lbl_flags_beacon = None     # Make this widget global
 flags = [False]*3           # 3 flags
-# Output string
-flag_output_str = ""
 flags_give_msg = [True]*len(flags) # Display the msg for each flag?
 
 # Readings history
@@ -515,7 +515,11 @@ def config_DATAQ():
 #
 def update_flags_details():
     """Update the flags details listbox."""
-    # Only proceed if there is a flag which 
+    # Connect to the global variables ------------------
+    global tree_flags_details
+
+    # Proceed check ------------------------------------
+    # Only proceed if there is a flag which can display a message
     proceed = False
     for idx in range(len(flags)):
         if flags[idx] and flags_give_msg[idx]:
@@ -523,52 +527,58 @@ def update_flags_details():
     if not proceed:
         return
 
-    # Connect to the global variables ----------------
-    global lbx_flags_details
-    global flag_output_str
-
     # Return if there are no new messages to display
+    # TODO: get rid of this(?) - redundant(?)
     if not any(flags_give_msg):
         return
 
-    # Construct the output string
-    flag_output_str = "" # Clear the output string
+    # Construct the output strings ---------------------
     # Add time
     now = datetime.datetime.now()
     dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
-    flag_output_str += dt_string
-    flag_output_str += "        " # Add spaces after time info
-    # Add COM port
-    flag_output_str += com_port
-    flag_output_str += "        "
     # Flag info
     if flags[0] and flags_give_msg[0]:
-        flg_string = "ERROR: Encountered problem while reading from device."
+        flag_lvl = "ERROR"
+        flag_msg = "Encountered problem while reading from device."
         flags_give_msg[0] = False
     elif flags[1] and flags_give_msg[1]:
-        flg_string = "TRIGGER [CURRENT]: Current readings outside " + \
+        flag_lvl = "TRIGGER"
+        flag_msg = "Current readings outside " + \
             "acceptable levels."
         flags_give_msg[1] = False
     elif flags[2] and flags_give_msg[2]:
-        flg_string = "WARNING [CURRENT]: Abnormal current readings."
+        flag_lvl = "WARNING"
+        flag_msg = "Abnormal current readings."
         flags_give_msg[2] = False
-    flag_output_str += flg_string
 
-    # Update the listbox
-    lbx_flags_details.insert(tk.END, flag_output_str)
-    # Add color formatting
+    # Format output and add to widget ------------------
+    # Find the tag for this entry (for formatting row color)
+    tag="acquiring"
+    back_color="white"
+    text_color="green"
+    if flags[0]:
+        tag="flag0"
+        text_color="red"
     if flags[1]:
-        lbx_flags_details.itemconfig(tk.END, fg="orange")
+        tag="flag1"
+        text_color="orange"
     elif flags[2]:
-        lbx_flags_details.itemconfig(tk.END, fg="yellow")
-    else:
-        lbx_flags_details.itemconfig(tk.END, fg="green")
+        tag="flag2"
+        text_color="yellow"
 
-    # Decide how to focus the listbox
-    # TODO: add a way to allow the user to either keep list static or
-    # always show most recent entries (will make it easier for user to browse
-    # past entries)
-    lbx_flags_details.see("end") # Keep latest output in view
+    # Insert values in next row
+    tree_flags_details.insert('', 'end', text=dt_string,
+        values=(com_port, flag_lvl, flag_msg),
+        tags=[tag])
+
+    # Format row color
+    tree_flags_details.tag_configure(tag, foreground=text_color, background=back_color)
+
+    # Set focus ----------------------------------------
+    # See last item in list
+    child_id = tree_flags_details.get_children()[-1] # For instance the last element in tuple
+    tree_flags_details.focus(child_id)
+    tree_flags_details.selection_set(child_id)    
 
 #
 # update_readings_history
@@ -589,21 +599,20 @@ def update_readings_history():
     # Device levels
     lvls_string = f"{volts:>7.3f} V, {amps:>7.3f} A"
 
-
     # Format output and add to widget ------------------
     # Find the tag for this entry (for formatting row color)
-    # TODO: add flag0
     tag="acquiring"
-    text_color="green"
     back_color="white"
+    text_color="green"
+    if flags[0]:
+        tag="flag0"
+        text_color="red"
     if flags[1]:
         tag="flag1"
         text_color="orange"
-        back_color="white"
     elif flags[2]:
         tag="flag2"
         text_color="yellow"
-        back_color="white"
 
     # Insert values in next row
     tree_history_details.insert('', 'end', text=dt_string,
@@ -612,12 +621,6 @@ def update_readings_history():
 
     # Format row color
     tree_history_details.tag_configure(tag, foreground=text_color, background=back_color)
-
-    # Decide how to focus the listbox
-    # TODO: add a way to allow the user to either keep list static or
-    # always show most recent entries (will make it easier for user to browse
-    # past entries)
-    # tree_history_details.see("end") # Keep latest output in view
 
 
 
@@ -718,7 +721,7 @@ def stop_collection():
 
     # Update widgets (levels at 0 when not acquiring)
     lbl_voltage['text'] = "{0:.3f} V".format(0)
-    lbl_current['text'] = "{0:.3f} V".format(0)
+    lbl_current['text'] = "{0:.3f} A".format(0)
 
     clear_all_flags()
 
@@ -808,7 +811,7 @@ def setup_job_window():
     global lbl_voltage          # Levels
     global lbl_current
     global lbl_flags_beacon     # Flags
-    global lbx_flags_details
+    global tree_flags_details
     global tree_history_details # History
     global pgr_status_bar       # Status
     global lbl_status
@@ -1000,13 +1003,21 @@ def setup_job_window():
 
     # Setup flags frame (details) ----------------------
     # Create widgets
-    lbx_flags_details = tk.Listbox( 
-        # TODO: replace Listbox with something else?
+    tree_flags_details = ttk.Treeview( 
         frm_flags_details,
-        height=4,
-        bg="white")
+        columns=('DateTime', 'COM Port', 'Flag Level', 'Flag Message'),
+        height=4)
+    # Configure widget
+    tree_flags_details.heading('#0', text="DateTime")
+    tree_flags_details.heading('#1', text="COM Port")
+    tree_flags_details.heading('#2', text="Flag Level")
+    tree_flags_details.heading('#3', text="Flag Message")
+    tree_flags_details.column('#0', minwidth=165, width=165, stretch=False)
+    tree_flags_details.column('#1', minwidth=75, width=75, stretch=False)
+    tree_flags_details.column('#2', minwidth=230, width=100, stretch=False)
+    tree_flags_details.column('#3', minwidth=173, width=303, stretch=False)
     # Pack widgets
-    lbx_flags_details.pack(fill=tk.BOTH)
+    tree_flags_details.pack(fill=tk.BOTH)
 
     # Setup readings history frame (header) ------------
     # Create widgets
@@ -1022,9 +1033,9 @@ def setup_job_window():
     tree_history_details = ttk.Treeview(
         frm_history_details,
         columns=('DateTime', 'COM Port', 'Channels', 'Device Levels'),
-        height=15
+        height=12
     )
-    # Configure widgets
+    # Configure widget
     tree_history_details.heading('#0', text="DateTime")
     tree_history_details.heading('#1', text="COM Port")
     tree_history_details.heading('#2', text="Channels")
