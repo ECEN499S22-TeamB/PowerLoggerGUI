@@ -1,7 +1,9 @@
 import tkinter as tk
+import tkinter.ttk as ttk
 import os
 import subprocess
 from tkinter import filedialog as fd
+import csv
 
 # ============= Globals
 # Windows
@@ -107,35 +109,31 @@ def active_window():
         # TODO: change file name to the correct file.
 
 
-def widget():
-    # Create widgets
-    global daq_details
-    global lbl_output
-
-    frm_output = tk.Frame(window, relief=tk.GROOVE, borderwidth=2)
-    lbl_output = tk.Listbox(frm_output, bg="white", listvariable=daq_details) 
-    frm_buttons = tk.Frame(window, relief=tk.RAISED, bd=2)
-    btn_open = tk.Button(frm_buttons, width= 12, height=3, text="New Project", command=create_job)
-    btn_save = tk.Button(frm_buttons, width= 12, height=3, text="Load Project", command= load_project)
-    btn_active = tk.Button(frm_buttons, width= 12, height=3,  text="Active Window", command=active_window)
-    bar_output = tk.Scrollbar(lbl_output, orient=tk.VERTICAL)
-    bar_output.config(command=lbl_output.yview)
-    lbl_output.config(yscrollcommand = bar_output.set)
-
-    btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
-    btn_save.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
-    btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
-    lbl_output.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
-    bar_output.pack(side="right", fill="y")
-
-    frm_buttons.grid(row=0, column=0, sticky="ns")
-    frm_output.grid(row=0, column=1, sticky="nsew")
-
 # TODO: Replace with real logging code
 # For Testing
 #-----------------------------------------------------------------------
 def log_history(i=0):
     """Update the flags details listbox."""
+
+    with open(r"C:\Users\aqua_\Documents\Codeing Project\Aaron CSV testing.csv") as file:
+        # Get the last line of the file 
+        for line in file:
+            pass
+        last_line = line
+
+        # Split the line into variables
+        time_and_data, resister, V1, V2, V3, V4, Current, CSV_flag = last_line.split(',')
+
+        print(time_and_data)
+        print(last_line)
+        print(V1)
+        print(V2)
+        print(V3)
+        print(V4)
+        print(Current)
+        print(CSV_flag)
+
+
     global daq_list        # Connect to the global variables
     global daq_details     #
     global lbl_output #
@@ -159,21 +157,24 @@ def log_history(i=0):
             lbl_output.see(idx)
     window.after(1000, log_history, i)
     #-----------------------------------------------------------------------
+    
 
 
 def menu():
     #setting for File menu
     menubar = tk.Menu(window)
     filemenu = tk.Menu(menubar, tearoff=0)
-    filemenu.add_command(label="New", command=donothing)
-    filemenu.add_command(label="Open", command=donothing)
-    filemenu.add_command(label="Save", command=donothing)
-    filemenu.add_separator()
+
+    #filemenu.add_command(label="New", command=donothing)
+    #filemenu.add_command(label="Open", command=donothing)
+    #filemenu.add_command(label="Save", command=donothing)
+    #filemenu.add_separator()
+
     filemenu.add_command(label="Exit", command=window.quit)
     menubar.add_cascade(label="File", menu=filemenu)
 
     helpmenu = tk.Menu(menubar, tearoff=0)
-    helpmenu.add_command(label="Help Index", command=donothing)
+    #helpmenu.add_command(label="Help Index", command=donothing)
     helpmenu.add_command(label="About...", command=donothing)
     menubar.add_cascade(label="Help", menu=helpmenu)
 
@@ -186,10 +187,87 @@ def donothing():
 
 def setup():
     window.title("Dashboard")
-    window.geometry('960x750+0+0') 
+    window.geometry('890x780+0+0') 
     window.columnconfigure(1, weight=1)
     window.rowconfigure(0, weight=1)
-    window.resizable(False, False) 
+    window.resizable(False, False)
+
+    style = ttk.Style(window)
+    style.theme_use('clam')
+
+    if window.getvar('tk_patchLevel')=='8.6.9': #and OS_Name=='nt':
+        def fixed_map(option):
+            """
+            Fix for setting text colour for Tkinter 8.6.9
+            From: https://core.tcl.tk/tk/info/509cafafae
+            
+            Returns the style map for 'option' with any styles starting with
+            ('!disabled', '!selected', ...) filtered out.
+            
+            style.map() returns an empty list for missing options, so this
+            should be future-safe.
+            """
+            return [elm for elm in style.map('Treeview', query_opt=option) if elm[:2] != ('!disabled', '!selected')]
+        style.map('Treeview', foreground=fixed_map('foreground'), background=fixed_map('background'))  
+
+    # Create widgets
+    global daq_details
+    global lbl_output
+
+    frm_output = tk.Frame(
+        window,
+        relief=tk.GROOVE,
+        borderwidth=2)
+    lbl_output = tk.Listbox(
+        frm_output,
+        bg="white",
+        listvariable=daq_details) 
+    frm_buttons = tk.Frame(
+        window,
+        relief=tk.RAISED,
+        bd=2)
+    btn_open = tk.Button(
+        frm_buttons,
+        width= 12, 
+        height=3, 
+        text="New Project", 
+        command=create_job)
+    btn_save = tk.Button(
+        frm_buttons, 
+        width= 12, 
+        height=3, 
+        text="Load Project", 
+        command= load_project)
+    btn_active = tk.Button(
+        frm_buttons, 
+        width= 12, 
+        height=3,  
+        text="Active Window", 
+        command=active_window)
+    btn_scoll_toggle = tk.Button(
+        frm_output, 
+        width= 14, 
+        height=1,  
+        text="Toggle Auto Scoll", 
+        command=donothing)
+
+
+    bar_output = tk.Scrollbar(
+        lbl_output, 
+        orient=tk.VERTICAL)
+
+    bar_output.config(command=lbl_output.yview)
+    lbl_output.config(yscrollcommand = bar_output.set)
+
+    btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
+    btn_save.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
+    btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
+    btn_scoll_toggle.pack(side=tk.TOP, anchor='e')
+    lbl_output.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
+    bar_output.pack(side="right", fill="y")
+
+    frm_buttons.grid(row=0, column=0, sticky="ns")
+    frm_output.grid(row=0, column=1, sticky="nsew")
 
     menu()
 
@@ -197,6 +275,5 @@ def setup():
 if __name__ == '__main__':
     window = tk.Tk()
     setup()
-    widget()
     window.after(1000, log_history)
     window.mainloop()
