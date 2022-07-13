@@ -402,13 +402,15 @@ def setup():
         frm_buttons,
         width= 12, 
         height=3, 
-        text="New Project", 
+        text="New Project",
+        bg="#c9c9c9",
         command=create_job)
-    btn_save = tk.Button(
+    btn_load = tk.Button(
         frm_buttons, 
         width= 12, 
         height=3, 
-        text="Load Project", 
+        text="Load Project",
+        bg="#c9c9c9" ,
         command= load_project)
     """    
     btn_active = tk.Button(
@@ -435,7 +437,7 @@ def setup():
     tree_log_history.config(yscrollcommand = bar_output.set)
 
     btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
-    btn_save.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
+    btn_load.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
     #btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
     #btn_scoll_toggle.pack(side=tk.TOP, anchor='e')
     tree_log_history.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
