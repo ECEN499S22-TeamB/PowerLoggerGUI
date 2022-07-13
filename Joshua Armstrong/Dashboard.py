@@ -25,6 +25,7 @@ job_num = None
 
 def create_job():
     """Prompt the user for the job number, then open a new job."""
+    """
     # Connect to globals -------------------------------
     global job_num_window
     global file_list
@@ -110,6 +111,120 @@ def create_job():
     ent_job_num.grid(row=1, column=0, sticky='n')
     btn_okay.grid(row=0, column=0, sticky='e')
     btn_cancel.grid(row=0, column=2, sticky='w')
+    """
+
+    """Prompt the user for the job number, then open a new job."""
+    # Helper functions ---------------------------------
+    def close_okay():
+        """Extract the year, job_num ints and close the window."""
+        global job_num          # Connect to the global variables
+        global year             #
+        global job_info_window  # 
+        
+        job_num = job_num.get()
+        year = year.get()
+        job_info_window.destroy()
+        # print(f"job num: {job_num}") # DEBUG
+        subprocess.Popen(
+            ['python', dir_path+'\job_window (Josh).py', str(year), str(job_num)])
+        # TODO: Improve cross-platform compatibility?
+
+    # Connect to globals -------------------------------
+    global job_info_window
+    global year
+    global job_num
+
+    # Convert to tk var types
+    job_num = tk.IntVar(value=0)
+    year = tk.IntVar(value=0)
+
+    # Create window ------------------------------------
+    job_info_window = tk.Toplevel(main_window)
+    # Configure the window -----------------------------
+    job_info_window.title("Job Information")
+    job_info_window.attributes('-topmost', True)
+    job_info_window.geometry('400x100+10+10') # Place in upper left screen
+    job_info_window.resizable(False, False)
+    # Configure the window grid
+    job_info_window.rowconfigure(0, weight=1)
+    job_info_window.rowconfigure(1, weight=1)
+    job_info_window.columnconfigure(0, weight=1)
+    job_info_window.columnconfigure(1, weight=1)
+
+    # Create frames ------------------------------------
+    frm_year = tk.Frame(job_info_window, padx=5, pady=5)
+    frm_job_num = tk.Frame(job_info_window, padx=5, pady=5)
+    frm_okcancel = tk.Frame(job_info_window, padx=5, pady=5)
+
+    # Configure frame grids ----------------------------
+    # year entry
+    frm_year.rowconfigure(0, weight=1)
+    frm_year.rowconfigure(1, weight=1)
+    frm_year.columnconfigure(0, weight=1)
+    # job number entry
+    frm_job_num.rowconfigure(0, weight=1)
+    frm_job_num.rowconfigure(1, weight=1)
+    frm_job_num.columnconfigure(0, weight=1)
+    # ok/cancel buttons
+    frm_okcancel.rowconfigure(0, weight=1)
+    frm_okcancel.columnconfigure(0, weight=1)
+    frm_okcancel.columnconfigure(1, weight=1)
+    # Pack frames
+    frm_year.grid(row=0, column=0, sticky="nsew")
+    frm_job_num.grid(row=0, column=1, sticky="nsew")
+    frm_okcancel.grid(row=1, column=0, sticky="nsew", columnspan=2)
+
+    # Create widgets -----------------------------------
+    # year entry
+    # TODO: prevent the user from inputing a number greater than 4 digits
+    lbl_year_prompt = tk.Label(
+        frm_year,
+        text="Please enter a job year.")
+    ent_year = tk.Entry(
+        frm_year,
+        textvariable=year,
+        relief=tk.GROOVE,
+        borderwidth=2,
+        width=10)
+    # job number entry
+    # TODO: prevent the user from inputing a number greater than 4 digits
+    lbl_job_num_prompt = tk.Label(
+        frm_job_num,
+        text="Please enter a job number.")
+    ent_job_num = tk.Entry(
+        frm_job_num,
+        textvariable=job_num,
+        relief=tk.GROOVE,
+        borderwidth=2,
+        width=10)
+    # okay/cancel buttons
+    btn_okay = tk.Button(
+        frm_okcancel,
+        text="Okay",
+        relief=tk.GROOVE,
+        borderwidth=2,
+        width=10,
+        bg="#c9c9c9",
+        command=close_okay)
+    btn_cancel = tk.Button(
+        frm_okcancel,
+        text="Cancel",
+        relief=tk.GROOVE,
+        borderwidth=2,
+        width=10,
+        bg="#c9c9c9",
+        command=job_info_window.destroy)
+
+    # Pack widgets into respective frames --------------
+    # year widgets
+    lbl_year_prompt.grid(row=0, column=0, sticky='sew', pady=5)
+    ent_year.grid(row=1, column=0, sticky='n')
+    # job num widgets
+    lbl_job_num_prompt.grid(row=0, column=0, sticky='sew', pady=5)
+    ent_job_num.grid(row=1, column=0, sticky='n')
+    # okay/cancel widgets
+    btn_okay.grid(row=0, column=0, sticky="e", padx=5)
+    btn_cancel.grid(row=0, column=1, sticky="w", padx=5)
     
 
 def load_project():
