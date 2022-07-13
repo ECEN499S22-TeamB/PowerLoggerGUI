@@ -196,13 +196,23 @@ def update_levels():
     global achan_accumulation_table
     global achan_number
 
+    # Check for valid conditions -----------------------
+    # Are we acquiring?
     if not acquiring:
         return
+    # Check for device connection (flag0)
+    # myports = [p for p in list(serial.tools.list_ports.comports())]
+    # if hooked_port not in myports:
+    #     flag0_handler()
     
     # TODO: this currently reads from all 4 analog input channels,
     # while only 2 are needed for this job. Change this(?)
     while (ser.inWaiting() > (2 * len(slist))):
-         for i in range(len(slist)):
+        # Check for device connection (flag0)
+        # myports = [p for p in list(serial.tools.list_ports.comports())]
+        # if hooked_port not in myports:
+        #     flag0_handler()
+        for i in range(len(slist)):
             # Always two bytes per sample...read them
             bytes = ser.read(2)
             # Only analog channels for a DI-1100, with dig_in states appearing
@@ -357,11 +367,15 @@ def check_conditions():
     if not acquiring:
         return
 
-    # Check serial connection status
-    # flag0
-    # TODO: add this functionality
+    # Check serial connection status -------------------
+    # flag0 (manual check - this is not the periodic check)
+    # myports = [p for p in list(serial.tools.list_ports.comports())]
+    # if hooked_port not in myports:
+    #     flags[0] = True
+    #     flag0_handler()
+    #     return
 
-    # Check device levels
+    # Check device levels ------------------------------
     lower_limit = expected_amps - flag_trigger
     upper_limit = expected_amps + flag_trigger
     lower_warning = lower_limit + (0.25*flag_trigger) # 75% to trigger
@@ -510,6 +524,22 @@ def config_DATAQ():
     # Init the logical channel number for enabled analog channels
     achan_number = 0
 
+#
+# flag0_handler
+#
+def flag0_handler():
+    """Called when a flag0 condition has been detected.
+    This means the DATAQ has been disconnected while acquiring."""
+    # Spawn an error messagebox
+    message="Lost DATAQ connection while acquiring.\n" +\
+    "Please reconnect and try again."
+    messagebox.showerror(
+        title="Error: Connection Lost", 
+        message=message)
+    get_settings()
+    job_window.wait_window(settings_window)
+    return
+
 # 
 # update_flags_details
 #
@@ -567,18 +597,12 @@ def update_flags_details():
         text_color="yellow"
 
     # Insert values in next row
-    tree_flags_details.insert('', 'end', text=dt_string,
+    tree_flags_details.insert('', 0, text=dt_string,
         values=(com_port, flag_lvl, flag_msg),
         tags=[tag])
 
     # Format row color
     tree_flags_details.tag_configure(tag, foreground=text_color, background=back_color)
-
-    # Set focus ----------------------------------------
-    # See last item in list
-    child_id = tree_flags_details.get_children()[-1] # For instance the last element in tuple
-    tree_flags_details.focus(child_id)
-    tree_flags_details.selection_set(child_id)    
 
 #
 # update_readings_history
@@ -615,7 +639,7 @@ def update_readings_history():
         text_color="yellow"
 
     # Insert values in next row
-    tree_history_details.insert('', 'end', text=dt_string,
+    tree_history_details.insert('', 0, text=dt_string,
         values=(com_port, ch_string, lvls_string),
         tags=[tag])
 
@@ -1106,7 +1130,12 @@ def get_settings():
         global initial_setup_done
 
         # Some setup before accepting new settings -----
-        # Stop data collection
+        # Stop data collection and clear all flags
+        # if not flags[0]:
+        #     stop_collection()
+        # else:
+        #     acquiring = False
+        #     clear_all_flags()
         stop_collection()
         # TODO: (low priority) why can't I used teardown() here instead?
         # Problem with closing the serial ports here?
@@ -1141,19 +1170,19 @@ def get_settings():
         # Input validation
         if com_port == "" or com_port not in active_com_ports:
             retry_settings("Please select a valid COM port.")
-            return
+            get_settings()
         if shunt_resistor == "":
             retry_settings("Please enter a valid shunt resistor value.")
-            return
+            get_settings()
         if decimation == 0:
             retry_settings("Please enter a valid decimation factor.")
-            return
+            get_settings()
         if expected_amps == 0:
             retry_settings("Please enter a valid expected current.")
-            return
+            get_settings()
         if flag_trigger == "":
             retry_settings("Please enter a valid flag trigger.")
-            return
+            get_settings()
 
         # Setup the COM port
         hooked_port = hooked_ports[com_port]
