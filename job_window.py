@@ -48,15 +48,21 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 import time
 import sys
+import os
 import datetime
 import serial
 import serial.tools.list_ports
+import csv
+from pathlib import Path
 
 
 
 
 
 # ============= Globals
+# File/system info --------------------------------------------------
+dir_path = os.path.dirname(os.path.realpath(__file__))
+
 # Command line args passed from caller (main_menu.py) ---------------
 # Job year
 if len(sys.argv) < 2:
@@ -76,7 +82,16 @@ job_number = job_number.zfill(4) # Leading zeros if less than 4 digits
 job_window = None
 settings_window = None
 
-# Job settings --------------------------------------------------
+# Data logging ------------------------------------------------------
+csv_filename = f"{dir_path}/logs/{year}/RTS{yr} - J{job_number}" \
+    f"/RTS{yr} - J{job_number}.csv"
+# Make the directory if it does not exist
+csv_file = Path(csv_filename)
+csv_file.parent.mkdir(exist_ok=True, parents=True)
+
+dt_string = "" # Changed by update_readings_history()
+
+# Job settings ------------------------------------------------------
 # TODO: add code to write to/read from JSON
 job_settings = {
     "Job Number": job_number,
@@ -114,13 +129,13 @@ resistor_values = [0.01, 0.1, 1, 5, 10]
 # Initial setup flag
 initial_setup_done = False # When set to True, initial setup completed
 
-# Device levels ----------------------------------------
+# Device levels -----------------------------------------------------
 lbl_voltage = None
 lbl_current = None
 volts = 0.00
 amps = 0.00
 
-# GUI vars ---------------------------------------------
+# GUI vars ----------------------------------------------------------
 # Flagging
 """
 flags = [bool, bool, bool]
@@ -134,6 +149,9 @@ prev_sel_flags = None       # Used for enhanced listbox deselection
 lbl_flags_beacon = None     # Make this widget global
 flags = [False]*3           # 3 flags
 flags_give_msg = [True]*len(flags) # Display the msg for each flag?
+# Flag info for CSV log
+flag_lvl = "ACQUIRING"          # Default flag level
+flag_msg = "Normal operation."  # Default flag message
 
 # Readings history
 tree_history_details = None # Make this widget global
@@ -143,7 +161,7 @@ prev_sel_history = None     # Used for enhanced listbox deselection
 pgr_status_bar = None
 lbl_status = None
 
-# Read DAQ ---------------------------------------------
+# Read DAQ ----------------------------------------------------------
 """ 
 Example slist for model DI-1100
 0x0000 = Analog channel 0, ±10 V range
@@ -189,8 +207,9 @@ def update_levels():
     # Connect to global variables ----------------------
     global lbl_voltage
     global lbl_current
+    global all_volts        # Used in CSV logging
     global volts
-    global amps
+    global amps             # Used in CSV logging
     global dec_count
     global slist_pointer
     global achan_accumulation_table
@@ -312,6 +331,7 @@ def update_levels():
                     if any(flags):
                         update_flags_details()
                     update_readings_history()
+                    log_data() # Log to CSV file
 
                     # Reset analog channel accumulators to zero
                     achan_accumulation_table = [0] * \
@@ -430,6 +450,40 @@ def update_flag_beacon():
 
 # ============= Helper functions
 #
+# open_log
+#
+def open_log():
+    """Opens and initializes the CSV log file."""
+    # Set headers in .csv file
+    csv_header = ["DateTime", "COM port", "Rshunt", "V1", "V2", "V3", "V4", \
+        "Current", "Flag level", 'Flag message']
+    with open(csv_filename, 'a', newline='') as csvfile:
+        updater = csv.writer(csvfile)
+        updater.writerow(csv_header)
+        csvfile.close()
+
+#
+# log_data
+#
+def log_data():
+    """Generates a list of information and writes it to CSV file."""
+    # Make levels more readable (don't need full precision)
+    all_volts_copy = [0]*len(all_volts) # local copy of all_volts
+    for idx in range(len(all_volts)):
+        all_volts_copy[idx] = round(all_volts[idx], 5)
+    amps_copy = round(amps, 5)
+    # Generate a list to write to the .csv
+    csv_list = [dt_string, com_port, shunt_resistor, all_volts_copy[0], \
+        all_volts_copy[1],all_volts_copy[2], all_volts_copy[3], amps_copy, \
+        flag_lvl, flag_msg]
+
+    # Write to the .csv file
+    with open(csv_filename, 'a', newline='') as csvfile:
+        updater = csv.writer(csvfile)
+        updater.writerow(csv_list)
+        csvfile.close()
+
+#
 # teardown
 #
 def teardown():
@@ -547,6 +601,8 @@ def update_flags_details():
     """Update the flags details listbox."""
     # Connect to the global variables ------------------
     global tree_flags_details
+    global flag_lvl
+    global flag_msg
 
     # Proceed check ------------------------------------
     # Only proceed if there is a flag which can display a message
@@ -567,6 +623,8 @@ def update_flags_details():
     now = datetime.datetime.now()
     dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
     # Flag info
+    flag_lvl = "ACQUIRING"
+    flag_msg = "Normal operation."
     if flags[0] and flags_give_msg[0]:
         flag_lvl = "ERROR"
         flag_msg = "Encountered problem while reading from device."
@@ -611,6 +669,7 @@ def update_readings_history():
     """Update the readings history detail view with the new readings."""
     # Connect to the global variables ------------------
     global tree_history_details
+    global dt_string
 
     # Construct the output strings ---------------------
     # DateTime
@@ -848,6 +907,9 @@ def setup_job_window():
     job_window.geometry('650x750-10+10')    # Place in upper right screen
     # TODO: Redo layout with grid for more robustness?
     job_window.resizable(False, False)      # Don't make window resizable
+
+    # Open the CSV log file
+    open_log()
 
     # Intercept the close button
     job_window.protocol("WM_DELETE_WINDOW", ask_close)
