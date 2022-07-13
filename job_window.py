@@ -604,6 +604,11 @@ def update_flags_details():
     global flag_lvl
     global flag_msg
 
+    # Reset flag logging info --------------------------
+    if not any(flags): 
+        flag_lvl = "ACQUIRING"
+        flag_msg = "Normal operation."
+
     # Proceed check ------------------------------------
     # Only proceed if there is a flag which can display a message
     proceed = False
@@ -613,18 +618,11 @@ def update_flags_details():
     if not proceed:
         return
 
-    # Return if there are no new messages to display
-    # TODO: get rid of this(?) - redundant(?)
-    if not any(flags_give_msg):
-        return
-
     # Construct the output strings ---------------------
     # Add time
     now = datetime.datetime.now()
     dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
-    # Flag info
-    flag_lvl = "ACQUIRING"
-    flag_msg = "Normal operation."
+    # Add flag lvl and msg
     if flags[0] and flags_give_msg[0]:
         flag_lvl = "ERROR"
         flag_msg = "Encountered problem while reading from device."
@@ -847,7 +845,7 @@ def retry_settings(message):
 #     prev_sel_history = lbx_history_details.curselection()
 
 #
-# clear_flag
+# clear_top_flag
 #
 def clear_top_flag():
     """Clears topmost (top priority) flag."""
@@ -858,6 +856,7 @@ def clear_top_flag():
         if flags[idx] == True:
             flags[idx] = False
             flags_give_msg[idx] = True
+            update_flags_details()
             return # Exit b/c only want to clear one flag at most
 
 #
@@ -865,7 +864,7 @@ def clear_top_flag():
 #
 def clear_all_flags():
     """Clears all flags."""
-    global flags # Connect with the global variable
+    global flags # Connect with the global variables
 
     # Clear the topmost flag
     for idx in range(len(flags)):
@@ -874,6 +873,7 @@ def clear_all_flags():
             flags_give_msg[idx] = True
     
     lbl_flags_beacon.config(background="white")
+    update_flags_details()
 
 
 
