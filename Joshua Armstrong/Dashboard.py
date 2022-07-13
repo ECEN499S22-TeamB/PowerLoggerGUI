@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import os
 import subprocess
-from tkinter import filedialog as fd
+from tkinter import filedialog
 import csv
 
 # ============= Globals
@@ -11,7 +11,10 @@ main_window = None
 job_num_window = None
 daq_list =[]
 daq_details = None
-lbl_output = None
+#lbl_output = None
+tree_log_history = None
+last_line = []
+file_list = []
 
 # File management
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -97,10 +100,15 @@ def create_job():
     btn_cancel.grid(row=0, column=2, sticky='w')
 
 def load_project():
+    global file_list
+    global last_line
+
     """Open a file for editing."""
-    filepath = fd.askopenfilename(
-        filetypes=[('Text Files', "*.txt"), ("All Files", "*.*")],
-    )
+    filepath = filedialog.askopenfilename()
+    file_list.append(filepath)
+    last_line.append("V")
+
+
 
 def active_window():
         subprocess.Popen(
@@ -115,50 +123,72 @@ def active_window():
 def log_history(i=0):
     """Update the flags details listbox."""
 
-    with open(r"C:\Users\aqua_\Documents\Codeing Project\Aaron CSV testing.csv") as file:
-        # Get the last line of the file 
-        for line in file:
-            pass
-        last_line = line
+    global last_line
+    global file_list
 
-        # Split the line into variables
-        time_and_data, resister, V1, V2, V3, V4, Current, CSV_flag = last_line.split(',')
+    number_of_file = 0
+    number_of_file = len(file_list)
 
-        print(time_and_data)
-        print(last_line)
-        print(V1)
-        print(V2)
-        print(V3)
-        print(V4)
-        print(Current)
-        print(CSV_flag)
+    for i in range(number_of_file):
+        with open(file_list[i], 'r') as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            next(csv_reader, None)
+            # Get the last line of the file
+            for line in csv_file:
+                pass
+            if line != last_line[i]:
+                last_line[i] = line
+                
+                # Split the line into variables
+                time_and_data, resister, V1, V2, V3, V4, amp, CSV_flag = last_line[i].split(',')
 
+                voltage = float(V2)
+                current = float(amp)
 
-    global daq_list        # Connect to the global variables
-    global daq_details     #
-    global lbl_output #
+                global tree_log_history
+                # Construct the output strings ---------------------
+                # DateTime
+                #now = datetime.datetime.now()
+                #dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
+                # Channel readings
+                # TODO: fix text alignment (-'s seem to be the problem)
+                ch_string = f"{voltage:>7.3f} V, " 
+                # Device levels
+                lvls_string =f"{current:>7.3f} A"
 
-    # Update the listbox
-    daq_list.append(f"ERROR{i}\n") # DEBUG
-    i += 1 # DEBUG
-    if not daq_details:
-        daq_details = tk.StringVar(value=daq_list)
-    else:
-        daq_details.set(daq_list)
-    lbl_output['listvariable'] = daq_details # Update the widget
+                # Format output and add to widget ------------------
+                # Find the tag for this entry (for formatting row color)
+                tag="acquiring"
+                back_color="white"
+                text_color="green"
 
-    # Decide how to focus the listbox
-    lbl_output.see("end") # Keep latest output in view
-    # If user has made a selection, keep it visible
-    idxs = lbl_output.curselection()
-    if len(idxs)==1:
-            idx = lbl_output.curselection()
-            lbl_output.selection_set(idx)
-            lbl_output.see(idx)
-    window.after(1000, log_history, i)
-    #-----------------------------------------------------------------------
-    
+                # Need how to change how Flag value are store
+                """
+                if CSV_flag == 0:
+                    tag="flag0"
+                    text_color="red"
+                if CSV_flag == 1:
+                    tag="flag1"
+                    text_color="orange"
+                elif CSV_flag == 2:
+                    tag="flag2"
+                    text_color="yellow"
+                """
+                job_name = os.path.basename(csv_file.name)
+                job_name_wo_ext = os.path.splitext(job_name)[0]
 
+                # Insert values in next row
+                tree_log_history.insert('', 'end', text=job_name_wo_ext,
+                    values=(time_and_data ,ch_string, lvls_string),
+                    tags=[tag])
+
+                # Format row color
+                tree_log_history.tag_configure(tag, foreground=text_color, background=back_color)
+                csv_file.close()
+            else:
+                pass
+
+    window.after(1000, log_history)
 
 def menu():
     #setting for File menu
@@ -212,16 +242,27 @@ def setup():
 
     # Create widgets
     global daq_details
-    global lbl_output
+    #global lbl_output
+    global tree_log_history
 
     frm_output = tk.Frame(
         window,
         relief=tk.GROOVE,
         borderwidth=2)
-    lbl_output = tk.Listbox(
+    tree_log_history = ttk.Treeview(
         frm_output,
-        bg="white",
-        listvariable=daq_details) 
+        columns=('Job Name', 'Date & Time', 'Voltage', 'Current'),
+        height=30)
+
+    tree_log_history.heading('#0', text="Job Name")
+    tree_log_history.heading('#1', text="Date & Time")
+    tree_log_history.heading('#2', text="Voltage")
+    tree_log_history.heading('#3', text="Current")
+    tree_log_history.column('#0', minwidth=190, width=190, stretch=False)
+    tree_log_history.column('#1', minwidth=226, width=226, stretch=False)
+    tree_log_history.column('#2', minwidth=170, width=170, stretch=False)
+    tree_log_history.column('#3', minwidth=171, width=171, stretch=False)
+
     frm_buttons = tk.Frame(
         window,
         relief=tk.RAISED,
@@ -244,26 +285,27 @@ def setup():
         height=3,  
         text="Active Window", 
         command=active_window)
+    """
     btn_scoll_toggle = tk.Button(
         frm_output, 
         width= 14, 
         height=1,  
         text="Toggle Auto Scoll", 
         command=donothing)
-
+    """
 
     bar_output = tk.Scrollbar(
-        lbl_output, 
+        tree_log_history, 
         orient=tk.VERTICAL)
 
-    bar_output.config(command=lbl_output.yview)
-    lbl_output.config(yscrollcommand = bar_output.set)
+    bar_output.config(command=tree_log_history.yview)
+    tree_log_history.config(yscrollcommand = bar_output.set)
 
     btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
     btn_save.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
     btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
-    btn_scoll_toggle.pack(side=tk.TOP, anchor='e')
-    lbl_output.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
+    #btn_scoll_toggle.pack(side=tk.TOP, anchor='e')
+    tree_log_history.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
     bar_output.pack(side="right", fill="y")
 
     frm_buttons.grid(row=0, column=0, sticky="ns")
