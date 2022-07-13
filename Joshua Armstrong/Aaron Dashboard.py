@@ -192,7 +192,7 @@ def setup_main_window():
 
     # Create button widgets
     btn_new = tk.Button(main_window, text="New Job", relief=tk.RIDGE, borderwidth=10, command=create_job)
-    btn_load = tk.Button(main_window, text="Load Job", relief=tk.RIDGE, borderwidth=10)
+    btn_load = tk.Button(main_window, text="Load Job", relief=tk.RIDGE, borderwidth=10, command=dashboard)
     btn_settings = tk.Button(main_window, text="System Settings", relief=tk.RIDGE, borderwidth=10)
     btn_quit = tk.Button(main_window, text="Quit", relief=tk.RIDGE, borderwidth=10, command=ask_close)
 
