@@ -4,6 +4,50 @@ This script will launch the Power Logger dashboard.
 Author: Austin Hilderbrand
 """
 
+"""
+dashboard.py
+This script will launch the Power Logger dashboard.
+Author: Austin Hilderbrand
+"""
+
+"""
+ECEN 499 Senior Project
+Instructor: Kevin Smith
+    208-496-7612
+    smithk@byui.edu
+
+Team B - Radiation Test Solutions
+    Aaron Mears (team lead)
+        509-596-8539
+        amears@radiationtestsolutions.com
+    Austin Hilderbrand
+        256-916-8954
+        austinlang748@gmail.com
+    Nathan Taylor
+        775-397-8139
+        tay18060@byui.edu
+    Joshua Armstrong
+        208-406-8689
+        arm05006@byui.edu
+"""
+
+"""
+GitHub tips -------------------------------------------------------------
+To upload changes
+    git add .   (stage changes - LOCAL)
+    git commit  (save staged changes - LOCAL)
+    git push    (upload saved changes to remote repo - LOCAL-->REMOTE)
+    
+To receive Changes
+    git pull    (download remote changes - REMOTE-->LOCAL)
+    
+To change branches
+    git checkout branchName
+
+To check status/verify branch
+    git status
+"""
+
 # ============= Imports
 import tkinter as tk
 from tkinter import messagebox
@@ -11,16 +55,23 @@ import os
 import subprocess
 
 
+
+
+
 # ============= Globals
 # Windows
 main_window = None
-job_num_window = None
+job_info_window = None
 
 # File management
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 # Job management
+year = None
 job_num = None
+
+
+
 
 
 # ============= Event handlers
@@ -46,64 +97,96 @@ def ask_close():
 #
 def create_job():
     """Prompt the user for the job number, then open a new job."""
-    # Connect to globals -------------------------------
-    global job_num_window
-    global job_num # Connect to the global variable
-    # Convert to tk var types
-    job_num = tk.IntVar(value=0)
-
     # Helper functions ---------------------------------
     def close_okay():
-        """Extract the job_num int and close the window."""
+        """Extract the year, job_num ints and close the window."""
         global job_num          # Connect to the global variables
-        global job_num_window   # 
+        global year             #
+        global job_info_window  # 
         
         job_num = job_num.get()
-        job_num_window.destroy()
+        year = year.get()
+        job_info_window.destroy()
         # print(f"job num: {job_num}") # DEBUG
         subprocess.Popen(
-            ['python', dir_path+'\job_window.py', str(job_num)])
+            ['python', dir_path+'\job_window.py', str(year), str(job_num)])
         # TODO: Improve cross-platform compatibility?
 
-    # Create window ------------------------------------
-    job_num_window = tk.Toplevel(main_window)
-    # Configure the window -----------------------------
-    job_num_window.title("Enter a job number.")
-    job_num_window.attributes('-topmost', True)
-    job_num_window.geometry('300x75+10+10') # Place in upper left screen
-    job_num_window.resizable(False, False)
-    # Configure the window grid
-    job_num_window.rowconfigure(0, weight=1)
-    job_num_window.rowconfigure(1, weight=1)
-    job_num_window.rowconfigure(2, weight=1)
-    job_num_window.columnconfigure(0, weight=1)
+    # Connect to globals -------------------------------
+    global job_info_window
+    global year
+    global job_num
 
-    # Create frame -------------------------------------
-    frm_okcancel = tk.Frame(job_num_window, padx=5, pady=5)
-    # Configure frame grid
+    # Convert to tk var types
+    job_num = tk.IntVar(value=0)
+    year = tk.IntVar(value=0)
+
+    # Create window ------------------------------------
+    job_info_window = tk.Toplevel(main_window)
+    # Configure the window -----------------------------
+    job_info_window.title("Job Information")
+    job_info_window.attributes('-topmost', True)
+    job_info_window.geometry('400x100+10+10') # Place in upper left screen
+    job_info_window.resizable(False, False)
+    # Configure the window grid
+    job_info_window.rowconfigure(0, weight=1)
+    job_info_window.rowconfigure(1, weight=1)
+    job_info_window.columnconfigure(0, weight=1)
+    job_info_window.columnconfigure(1, weight=1)
+
+    # Create frames ------------------------------------
+    frm_year = tk.Frame(job_info_window, padx=5, pady=5)
+    frm_job_num = tk.Frame(job_info_window, padx=5, pady=5)
+    frm_okcancel = tk.Frame(job_info_window, padx=5, pady=5)
+
+    # Configure frame grids ----------------------------
+    # year entry
+    frm_year.rowconfigure(0, weight=1)
+    frm_year.rowconfigure(1, weight=1)
+    frm_year.columnconfigure(0, weight=1)
+    # job number entry
+    frm_job_num.rowconfigure(0, weight=1)
+    frm_job_num.rowconfigure(1, weight=1)
+    frm_job_num.columnconfigure(0, weight=1)
+    # ok/cancel buttons
     frm_okcancel.rowconfigure(0, weight=1)
     frm_okcancel.columnconfigure(0, weight=1)
     frm_okcancel.columnconfigure(1, weight=1)
-    frm_okcancel.columnconfigure(2, weight=1)
-    # Pack frame
-    frm_okcancel.grid(row=2, column=0, sticky='nsew')
+    # Pack frames
+    frm_year.grid(row=0, column=0, sticky="nsew")
+    frm_job_num.grid(row=0, column=1, sticky="nsew")
+    frm_okcancel.grid(row=1, column=0, sticky="nsew", columnspan=2)
 
     # Create widgets -----------------------------------
-    lbl_prompt = tk.Label(
-        job_num_window,
+    # year entry
+    # TODO: prevent the user from inputing a number greater than 4 digits
+    lbl_year_prompt = tk.Label(
+        frm_year,
+        text="Please enter a job year.")
+    ent_year = tk.Entry(
+        frm_year,
+        textvariable=year,
+        relief=tk.GROOVE,
+        borderwidth=2,
+        width=10)
+    # job number entry
+    # TODO: prevent the user from inputing a number greater than 4 digits
+    lbl_job_num_prompt = tk.Label(
+        frm_job_num,
         text="Please enter a job number.")
     ent_job_num = tk.Entry(
-        job_num_window,
+        frm_job_num,
         textvariable=job_num,
         relief=tk.GROOVE,
         borderwidth=2,
-        width=15)
+        width=10)
+    # okay/cancel buttons
     btn_okay = tk.Button(
         frm_okcancel,
         text="Okay",
         relief=tk.GROOVE,
         borderwidth=2,
-        width=15,
+        width=10,
         bg="#c9c9c9",
         command=close_okay)
     btn_cancel = tk.Button(
@@ -111,14 +194,23 @@ def create_job():
         text="Cancel",
         relief=tk.GROOVE,
         borderwidth=2,
-        width=15,
+        width=10,
         bg="#c9c9c9",
-        command=job_num_window.destroy)
-    # Pack widgets
-    lbl_prompt.grid(row=0, column=0, sticky='sew')
+        command=job_info_window.destroy)
+
+    # Pack widgets into respective frames --------------
+    # year widgets
+    lbl_year_prompt.grid(row=0, column=0, sticky='sew', pady=5)
+    ent_year.grid(row=1, column=0, sticky='n')
+    # job num widgets
+    lbl_job_num_prompt.grid(row=0, column=0, sticky='sew', pady=5)
     ent_job_num.grid(row=1, column=0, sticky='n')
-    btn_okay.grid(row=0, column=0, sticky='e')
-    btn_cancel.grid(row=0, column=2, sticky='w')
+    # okay/cancel widgets
+    btn_okay.grid(row=0, column=0, sticky="e", padx=5)
+    btn_cancel.grid(row=0, column=1, sticky="w", padx=5)
+
+
+
 
 
 # ============= Setup visuals
@@ -172,6 +264,9 @@ def setup_main_window():
 
     # Intercept the close button
     main_window.protocol("WM_DELETE_WINDOW", ask_close)
+
+
+
 
 
 # ============= Run setup and enter event loop
