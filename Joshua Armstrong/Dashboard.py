@@ -1,3 +1,4 @@
+from operator import truediv
 import tkinter as tk
 import tkinter.ttk as ttk
 import os
@@ -26,13 +27,24 @@ def create_job():
     """Prompt the user for the job number, then open a new job."""
     # Connect to globals -------------------------------
     global job_num_window
+    global file_list
+    global last_line
+
+    file_path = filedialog.askopenfilename()
+    subprocess.Popen(
+            ['python', dir_path+'\GUI(Austin ver).py', str(file_path)])
+
+    file_list.append(file_path)
+    last_line.append("V")
+
+    """
     global job_num # Connect to the global variable
     # Convert to tk var types
     job_num = tk.IntVar(value=0)
 
     # Helper functions ---------------------------------
     def close_okay():
-        """Extract the job_num int and close the window."""
+        #Extract the job_num int and close the window.
         global job_num          # Connect to the global variables
         global job_num_window   # 
         
@@ -98,6 +110,7 @@ def create_job():
     ent_job_num.grid(row=1, column=0, sticky='n')
     btn_okay.grid(row=0, column=0, sticky='e')
     btn_cancel.grid(row=0, column=2, sticky='w')
+    """
 
 def load_project():
     global file_list
@@ -125,6 +138,7 @@ def log_history(i=0):
 
     global last_line
     global file_list
+    convertable = False
 
     number_of_file = 0
     number_of_file = len(file_list)
@@ -132,7 +146,7 @@ def log_history(i=0):
     for i in range(number_of_file):
         with open(file_list[i], 'r') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
-            next(csv_reader, None)
+            next(csv_reader)
             # Get the last line of the file
             for line in csv_file:
                 pass
@@ -142,49 +156,57 @@ def log_history(i=0):
                 # Split the line into variables
                 time_and_data, resister, V1, V2, V3, V4, amp, CSV_flag = last_line[i].split(',')
 
-                voltage = float(V2)
-                current = float(amp)
+                try:
+                    voltage = float(V2)
+                    current = float(amp)
+                    convertable = True
+                except:
+                    convertable = False
 
-                global tree_log_history
-                # Construct the output strings ---------------------
-                # DateTime
-                #now = datetime.datetime.now()
-                #dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
-                # Channel readings
-                # TODO: fix text alignment (-'s seem to be the problem)
-                ch_string = f"{voltage:>7.3f} V, " 
-                # Device levels
-                lvls_string =f"{current:>7.3f} A"
+                if convertable == True: 
+                    voltage = float(V2)
+                    current = float(amp)
 
-                # Format output and add to widget ------------------
-                # Find the tag for this entry (for formatting row color)
-                tag="acquiring"
-                back_color="white"
-                text_color="green"
+                    global tree_log_history
+                    # Construct the output strings ---------------------
+                    # DateTime
+                    #now = datetime.datetime.now()
+                    #dt_string = now.strftime("%m/%d/%Y %H:%M:%S.%f")[:-3] # mm/dd/YY H:M:S.mS
+                    # Channel readings
+                    # TODO: fix text alignment (-'s seem to be the problem)
+                    ch_string = f"{voltage:>7.3f} V, " 
+                    # Device levels
+                    lvls_string =f"{current:>7.3f} A"
 
-                # Need how to change how Flag value are store
-                """
-                if CSV_flag == 0:
-                    tag="flag0"
-                    text_color="red"
-                if CSV_flag == 1:
-                    tag="flag1"
-                    text_color="orange"
-                elif CSV_flag == 2:
-                    tag="flag2"
-                    text_color="yellow"
-                """
-                job_name = os.path.basename(csv_file.name)
-                job_name_wo_ext = os.path.splitext(job_name)[0]
+                    # Format output and add to widget ------------------
+                    # Find the tag for this entry (for formatting row color)
+                    tag="acquiring"
+                    back_color="white"
+                    text_color="green"
 
-                # Insert values in next row
-                tree_log_history.insert('', 'end', text=job_name_wo_ext,
-                    values=(time_and_data ,ch_string, lvls_string),
-                    tags=[tag])
+                    # Need how to change how Flag value are store
+                    """
+                    if CSV_flag == 0:
+                        tag="flag0"
+                        text_color="red"
+                    if CSV_flag == 1:
+                        tag="flag1"
+                        text_color="orange"
+                    elif CSV_flag == 2:
+                        tag="flag2"
+                        text_color="yellow"
+                    """
+                    job_name = os.path.basename(csv_file.name)
+                    job_name_wo_ext = os.path.splitext(job_name)[0]
 
-                # Format row color
-                tree_log_history.tag_configure(tag, foreground=text_color, background=back_color)
-                csv_file.close()
+                    # Insert values in next row
+                    tree_log_history.insert('', 'end', text=job_name_wo_ext,
+                        values=(time_and_data ,ch_string, lvls_string),
+                        tags=[tag])
+
+                    # Format row color
+                    tree_log_history.tag_configure(tag, foreground=text_color, background=back_color)
+                    csv_file.close()
             else:
                 pass
 
@@ -279,12 +301,14 @@ def setup():
         height=3, 
         text="Load Project", 
         command= load_project)
+    """    
     btn_active = tk.Button(
         frm_buttons, 
         width= 12, 
         height=3,  
         text="Active Window", 
         command=active_window)
+    """
     """
     btn_scoll_toggle = tk.Button(
         frm_output, 
@@ -303,7 +327,7 @@ def setup():
 
     btn_open.grid(row=0, column=0, sticky="ew", padx=5, pady=20)
     btn_save.grid(row=1, column=0, sticky="ew", padx=5, pady=20)
-    btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
+    #btn_active.grid(row=2, column=0, sticky="ew", padx=5, pady=20)
     #btn_scoll_toggle.pack(side=tk.TOP, anchor='e')
     tree_log_history.pack(side=tk.TOP, anchor="nw", fill='both', expand=1)
     bar_output.pack(side="right", fill="y")
