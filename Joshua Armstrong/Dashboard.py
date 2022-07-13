@@ -30,14 +30,14 @@ def create_job():
     global file_list
     global last_line
 
-    file_path = filedialog.askopenfilename()
-    subprocess.Popen(
-            ['python', dir_path+'\GUI(Austin ver).py', str(file_path)])
+    #file_path = filedialog.askopenfilename()
+    #subprocess.Popen(
+    #        ['python', dir_path+'\job_window (Josh).py', str(file_path)])
 
-    file_list.append(file_path)
-    last_line.append("V")
+    #file_list.append(file_path)
+    #last_line.append("V")
 
-    """
+    
     global job_num # Connect to the global variable
     # Convert to tk var types
     job_num = tk.IntVar(value=0)
@@ -110,7 +110,7 @@ def create_job():
     ent_job_num.grid(row=1, column=0, sticky='n')
     btn_okay.grid(row=0, column=0, sticky='e')
     btn_cancel.grid(row=0, column=2, sticky='w')
-    """
+    
 
 def load_project():
     global file_list
@@ -154,7 +154,7 @@ def log_history(i=0):
                 last_line[i] = line
                 
                 # Split the line into variables
-                time_and_data, resister, V1, V2, V3, V4, amp, CSV_flag = last_line[i].split(',')
+                time_and_data, resister, V1, V2, V3, V4, amp, CSV_flag, CSV_flag_message = last_line[i].split(',')
 
                 try:
                     voltage = float(V2)
@@ -185,17 +185,17 @@ def log_history(i=0):
                     text_color="green"
 
                     # Need how to change how Flag value are store
-                    """
-                    if CSV_flag == 0:
+                    
+                    if CSV_flag == "ERROR":
                         tag="flag0"
                         text_color="red"
-                    if CSV_flag == 1:
+                    if CSV_flag == "TRIGGER":
                         tag="flag1"
                         text_color="orange"
-                    elif CSV_flag == 2:
+                    elif CSV_flag == "WARNING":
                         tag="flag2"
                         text_color="yellow"
-                    """
+                    
                     job_name = os.path.basename(csv_file.name)
                     job_name_wo_ext = os.path.splitext(job_name)[0]
 
